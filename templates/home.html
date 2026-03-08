@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groupie Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
+        <h1>Groupie Tracker</h1>
+    </header>
+    <main>
+        <div class="filters">
+            <input type="text" id="searchInput" placeholder="Search by artist or member...">
+            
+            <div class="filter-group">
+                <label>Year Range:</label>
+                <input type="number" id="minYear" placeholder="Min Year" min="1900" max="2024">
+                <input type="number" id="maxYear" placeholder="Max Year" min="1900" max="2024">
+            </div>
+            
+            <div class="filter-group">
+                <label>Sort By:</label>
+                <select id="sortBy">
+                    <option value="">Default</option>
+                    <option value="name">Name (A-Z)</option>
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                </select>
+            </div>
+            
+            <button id="applyFilters" class="btn">Apply Filters</button>
+            <button id="resetFilters" class="btn-secondary" style="margin-top: 1rem">Reset</button>
+        </div>
+
+        <div class="artist-grid" id="artistGrid">
+            {{range .}}
+            <div class="artist-card">
+                <img src="{{.Image}}" alt="{{.Name}}">
+                <h2>{{.Name}}</h2>
+                <p>Created: {{.CreationDate}}</p>
+                <p>First Album: {{.FirstAlbum}}</p>
+                <a href="/artist/{{.ID}}" class="btn">View Details</a>
+            </div>
+            {{end}}
+        </div>
+    </main>
+    <script src="/static/script.js"></script>
+</body>
+</html>

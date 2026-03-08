@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Artist.Name}} - Groupie Tracker</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">🌙</button>
+        <h1>Groupie Tracker</h1>
+        <a href="/" class="back-btn">← Back to Artists</a>
+    </header>
+    <main>
+        <div class="artist-profile">
+            <!-- Hero Section -->
+            <div class="artist-hero">
+                <img src="{{.Artist.Image}}" alt="{{.Artist.Name}}" class="artist-hero-image">
+                <div class="artist-hero-info">
+                    <h2>{{.Artist.Name}}</h2>
+                    <div class="artist-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Formed</span>
+                            <span class="stat-value">{{.Artist.CreationDate}}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Members</span>
+                            <span class="stat-value">{{len .Artist.Members}}</span>
+                        </div>
+                        {{if .Relation}}
+                        <div class="stat-item">
+                            <span class="stat-label">Concerts</span>
+                            <span class="stat-value">{{.TotalConcerts}}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Countries</span>
+                            <span class="stat-value">{{.TotalCountries}}</span>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Cards -->
+            <div class="info-grid">
+                <!-- Band Info -->
+                <div class="info-card">
+                    <h3>📀 Band Information</h3>
+                    <div class="info-item">
+                        <span class="info-label">First Album:</span>
+                        <span class="info-value">{{.Artist.FirstAlbum}}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Years Active:</span>
+                        <span class="info-value">{{.YearsActive}} years</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Band Type:</span>
+                        <span class="info-value">{{.BandType}}</span>
+                    </div>
+                </div>
+
+                <!-- Members Card -->
+                <div class="info-card">
+                    <h3>👥 Band Members</h3>
+                    <ul class="members-list">
+                        {{range .Artist.Members}}
+                        <li>🎤 {{.}}</li>
+                        {{end}}
+                    </ul>
+                </div>
+            </div>
+
+            {{if .Relation}}
+            <!-- Concert Timeline -->
+            <div class="concerts-section">
+                <h3>🎸 Concert History</h3>
+                <p class="concerts-summary">
+                    {{.Artist.Name}} has performed {{.TotalConcerts}} concerts across {{.TotalCountries}} countries.
+                </p>
+                <div class="concerts-grid">
+                    {{range $location, $dates := .Relation.DatesLocations}}
+                    <div class="concert-card">
+                        <div class="concert-location">
+                            <span class="location-icon">📍</span>
+                            <span class="location-name">{{$location}}</span>
+                        </div>
+                        <div class="concert-dates">
+                            <span class="dates-count">{{len $dates}} concert(s)</span>
+                            <ul class="dates-list">
+                                {{range $dates}}
+                                <li>📅 {{.}}</li>
+                                {{end}}
+                            </ul>
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{else}}
+            <div class="no-concerts">
+                <p>No concert information available for this artist.</p>
+            </div>
+            {{end}}
+        </div>
+    </main>
+    <script src="/static/script.js"></script>
+</body>
+</html>
