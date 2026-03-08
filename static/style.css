@@ -1,0 +1,668 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+    transition: background 0.8s ease, color 0.5s ease;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+
+body.light-theme {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+body.dark-theme::before {
+    opacity: 1;
+}
+
+header {
+    position: sticky;
+    top: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: white;
+    padding: 2rem 1rem;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.33);
+    z-index: 10;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.theme-toggle {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1) rotate(20deg);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95) rotate(0deg);
+}
+
+.back-btn {
+    color: white;
+    text-decoration: none;
+    display: inline-block;
+    margin-top: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    transform: translateX(-5px);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.filters {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filters input[type="text"],
+.filters input[type="number"],
+.filters select {
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+}
+
+.filters input[type="text"]:focus,
+.filters input[type="number"]:focus,
+.filters select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    transform: translateY(-2px);
+}
+
+.filters input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.filter-group label {
+    font-weight: 600;
+    white-space: nowrap;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.filter-group input {
+    width: 100px;
+}
+
+.btn-secondary {
+    padding: 0.5rem 1rem;
+    background: #666;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #888;
+    transform: scale(1.05);
+}
+
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+
+.no-results {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    font-size: 1.2rem;
+}
+
+.loading {
+    text-align: center;
+    padding: 3rem;
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 3px solid #333;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.error-message {
+    text-align: center;
+    padding: 2rem;
+    color: #d32f2f;
+    font-size: 1.2rem;
+    background: #ffebee;
+    border-radius: 8px;
+    margin: 2rem;
+}
+
+.artist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 2rem;
+    animation: fadeIn 0.6s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.artist-card {
+    /* From https://css.glass */
+    background: rgba(255, 255, 255, 0.17);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(6.8px);
+    -webkit-backdrop-filter: blur(6.8px);
+    border: 1px solid rgba(255, 255, 255, 0.33);
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+}
+
+.artist-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.artist-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 8px;
+    transition: transform 0.3s ease;
+}
+
+.artist-card:hover img {
+    transform: scale(1.05);
+}
+
+.artist-card h2 {
+    margin: 1rem 0 0.5rem;
+    color: #333;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .artist-card h2 {
+    color: #f0f0f0;
+}
+
+.artist-card p {
+    color: #666;
+    margin: 0.25rem 0;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .artist-card p {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.btn {
+    display: inline-block;
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: #333;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    background: #555;
+    transform: scale(1.05);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.artist-detail {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+}
+
+.artist-detail img {
+    width: 300px;
+    border-radius: 8px;
+}
+
+.artist-detail h3 {
+    margin-top: 2rem;
+}
+
+.artist-detail ul {
+    margin-left: 2rem;
+    margin-top: 0.5rem;
+}
+
+/* Enhanced Artist Profile Styles */
+.artist-profile {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.artist-hero {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    padding: 2rem;
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.artist-hero-image {
+    width: 300px;
+    height: 300px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.artist-hero-info {
+    flex: 1;
+}
+
+.artist-hero-info h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    color: #333;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .artist-hero-info h2 {
+    color: white;
+}
+
+.artist-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stat-item {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .stat-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #333;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .stat-value {
+    color: white;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.info-card {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 1.5rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.info-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+    font-size: 1.3rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .info-card h3 {
+    color: white;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #666;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .info-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.info-value {
+    color: #333;
+    font-weight: 500;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .info-value {
+    color: white;
+}
+
+.members-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.members-list li {
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.2);
+    margin-bottom: 0.5rem;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    color: #333;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .members-list li {
+    color: white;
+}
+
+.concerts-section {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.concerts-section h3 {
+    margin-top: 0;
+    font-size: 1.8rem;
+    color: #333;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .concerts-section h3 {
+    color: white;
+}
+
+.concerts-summary {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .concerts-summary {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.concerts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.concert-card {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border-left: 4px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.concert-location {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.location-icon {
+    font-size: 1.5rem;
+}
+
+.location-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #333;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .location-name {
+    color: white;
+}
+
+.concert-dates {
+    margin-top: 1rem;
+}
+
+.dates-count {
+    display: inline-block;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dates-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.75rem 0 0 0;
+}
+
+.dates-list li {
+    padding: 0.5rem 0;
+    color: #666;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .dates-list li {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.dates-list li:last-child {
+    border-bottom: none;
+}
+
+.no-concerts {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 3rem;
+    border-radius: 16px;
+    text-align: center;
+    color: #666;
+    transition: color 0.5s ease;
+}
+
+body.dark-theme .no-concerts {
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .artist-hero {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .artist-hero-image {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .artist-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.concerts {
+    margin-top: 1rem;
+}
+
+.concert-item {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.concert-item h4 {
+    margin-bottom: 0.5rem;
+}
+
+.error-page {
+    /* From https://css.glass */
+    background: rgba(255, 255, 255, 0.17);
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(6.8px);
+    -webkit-backdrop-filter: blur(6.8px);
+    border: 1px solid rgba(255, 255, 255, 0.33);
+    text-align: center;
+    padding: 4rem;
+}
+
+.error-page h2 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
