@@ -669,3 +669,330 @@ body.dark-theme .no-concerts {
     font-size: 3rem;
     margin-bottom: 1rem;
 }
+
+/* --- Search container & autocomplete --- */
+.search-container {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-container input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.search-container input[type="text"]:focus {
+    outline: none;
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    transform: translateY(-2px);
+}
+
+.suggestions-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+body.dark-theme .suggestions-dropdown {
+    background: rgba(30, 30, 50, 0.95);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.suggestion-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: rgba(102, 126, 234, 0.15);
+}
+
+body.dark-theme .suggestion-item:hover {
+    background: rgba(102, 126, 234, 0.3);
+}
+
+.suggestion-text {
+    color: #333;
+    font-size: 0.95rem;
+}
+
+body.dark-theme .suggestion-text {
+    color: #f0f0f0;
+}
+
+.suggestion-category {
+    color: #999;
+    font-size: 0.8rem;
+    font-style: italic;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+}
+
+body.dark-theme .suggestion-category {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+/* --- Checkbox groups --- */
+.checkbox-group {
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.checkbox-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.6rem;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.checkbox-label:hover {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.checkbox-label input[type="checkbox"] {
+    accent-color: #667eea;
+}
+
+/* --- Location filter --- */
+.locations-filter {
+    flex-basis: 100%;
+}
+
+.location-search {
+    width: 100%;
+    max-width: 300px;
+    padding: 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.9);
+    margin-bottom: 0.5rem;
+}
+
+.checkbox-list.scrollable {
+    max-height: 200px;
+    overflow-y: auto;
+    display: block;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 100%;
+}
+
+.location-country {
+    margin-bottom: 0.5rem;
+}
+
+.country-name {
+    display: block;
+    color: white;
+    font-size: 0.85rem;
+    text-transform: capitalize;
+    margin-bottom: 0.25rem;
+    padding: 0.2rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.location-item {
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+
+.loading-text {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85rem;
+    padding: 0.5rem;
+}
+
+/* --- Filter actions --- */
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-basis: 100%;
+}
+
+/* --- Result count --- */
+.result-count {
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+body.dark-theme .result-count {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* --- Map section --- */
+.map-section {
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    margin-bottom: 2rem;
+}
+
+.map-section h3 {
+    margin-top: 0;
+    font-size: 1.8rem;
+    color: #333;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+    transition: color 0.5s ease;
+    margin-bottom: 1rem;
+}
+
+body.dark-theme .map-section h3 {
+    color: white;
+}
+
+#concert-map {
+    height: 450px;
+    border-radius: 12px;
+    z-index: 1;
+}
+
+/* Leaflet popup overrides */
+.leaflet-popup-content-wrapper {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+body.dark-theme .leaflet-popup-content-wrapper {
+    background: rgba(30, 30, 50, 0.92);
+    color: white;
+}
+
+body.dark-theme .leaflet-popup-tip {
+    background: rgba(30, 30, 50, 0.92);
+}
+
+.map-popup {
+    line-height: 1.5;
+}
+
+.popup-date {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+body.dark-theme .popup-date {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- Dark theme adjustments for filter inputs --- */
+body.dark-theme .search-container input[type="text"],
+body.dark-theme .filters input[type="number"],
+body.dark-theme .filters select,
+body.dark-theme .location-search {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-theme .search-container input[type="text"]::placeholder,
+body.dark-theme .filters input[type="number"]::placeholder,
+body.dark-theme .location-search::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+body.dark-theme .search-container input[type="text"]:focus,
+body.dark-theme .filters input[type="number"]:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #667eea;
+}
+
+body.dark-theme .loading {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+body.dark-theme .loading::after {
+    border-color: rgba(255, 255, 255, 0.9);
+    border-top-color: transparent;
+}
+
+body.dark-theme .no-results {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* --- Responsive adjustments for new filters and map --- */
+@media (max-width: 768px) {
+    .filters {
+        flex-direction: column;
+    }
+
+    .filter-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .search-container {
+        width: 100%;
+    }
+
+    .checkbox-list {
+        width: 100%;
+    }
+
+    .filter-actions {
+        justify-content: center;
+    }
+
+    #concert-map {
+        height: 300px;
+    }
+
+    .map-section {
+        padding: 1rem;
+    }
+}

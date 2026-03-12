@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Artist.Name}} - Groupie Tracker</title>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
     <header>
@@ -72,6 +74,14 @@
                 </div>
             </div>
 
+            {{if .Locations}}
+            <!-- World Tour Map -->
+            <div class="map-section">
+                <h3>🗺️ World Tour Map</h3>
+                <div id="concert-map"></div>
+            </div>
+            {{end}}
+
             {{if .Relation}}
             <!-- Concert Timeline -->
             <div class="concerts-section">
@@ -106,5 +116,57 @@
         </div>
     </main>
     <script src="/static/script.js"></script>
+    {{if .Locations}}
+    <script>
+    (function() {
+        var locations = {{toJSON .Locations}};
+        if (!locations || locations.length === 0) return;
+
+        var map = L.map('concert-map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        var bounds = [];
+        var markerCoords = [];
+
+        locations.forEach(function(loc) {
+            var latlng = [loc.lat, loc.lng];
+            bounds.push(latlng);
+            markerCoords.push(latlng);
+
+            var popupContent = '<div class="map-popup">' +
+                '<strong>' + loc.city + '</strong>';
+            if (loc.country) {
+                popupContent += ', ' + loc.country;
+            }
+            popupContent += '<br>';
+            loc.dates.forEach(function(date) {
+                popupContent += '<span class="popup-date">📅 ' + date + '</span><br>';
+            });
+            popupContent += '</div>';
+
+            L.marker(latlng)
+                .addTo(map)
+                .bindPopup(popupContent);
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+
+        // Draw dashed polyline connecting markers in order
+        if (markerCoords.length > 1) {
+            L.polyline(markerCoords, {
+                color: '#667eea',
+                weight: 2,
+                dashArray: '8, 8',
+                opacity: 0.7
+            }).addTo(map);
+        }
+    })();
+    </script>
+    {{end}}
 </body>
 </html>

@@ -13,14 +13,24 @@
     </header>
     <main>
         <div class="filters">
-            <input type="text" id="searchInput" placeholder="Search by artist or member...">
-            
-            <div class="filter-group">
-                <label>Year Range:</label>
-                <input type="number" id="minYear" placeholder="Min Year" min="1900" max="2024">
-                <input type="number" id="maxYear" placeholder="Max Year" min="1900" max="2024">
+            <!-- Search with autocomplete -->
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Search artists, members, locations, dates..." autocomplete="off">
+                <div class="suggestions-dropdown" id="suggestionsDropdown"></div>
             </div>
-            
+
+            <div class="filter-group">
+                <label>Creation Year:</label>
+                <input type="number" id="minYear" placeholder="Min" min="1900" max="2030">
+                <input type="number" id="maxYear" placeholder="Max" min="1900" max="2030">
+            </div>
+
+            <div class="filter-group">
+                <label>First Album Year:</label>
+                <input type="number" id="minAlbumYear" placeholder="Min" min="1900" max="2030">
+                <input type="number" id="maxAlbumYear" placeholder="Max" min="1900" max="2030">
+            </div>
+
             <div class="filter-group">
                 <label>Sort By:</label>
                 <select id="sortBy">
@@ -30,10 +40,38 @@
                     <option value="oldest">Oldest First</option>
                 </select>
             </div>
-            
-            <button id="applyFilters" class="btn">Apply Filters</button>
-            <button id="resetFilters" class="btn-secondary" style="margin-top: 1rem">Reset</button>
+
+            <!-- Member count checkboxes -->
+            <div class="filter-group checkbox-group">
+                <label>Members:</label>
+                <div class="checkbox-list">
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="1"> 1</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="2"> 2</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="3"> 3</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="4"> 4</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="5"> 5</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="6"> 6</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="7"> 7</label>
+                    <label class="checkbox-label"><input type="checkbox" name="members" value="8"> 8+</label>
+                </div>
+            </div>
+
+            <!-- Location checkboxes (populated via JS) -->
+            <div class="filter-group checkbox-group locations-filter">
+                <label>Locations:</label>
+                <input type="text" id="locationSearch" class="location-search" placeholder="Filter locations...">
+                <div class="checkbox-list scrollable" id="locationCheckboxes">
+                    <p class="loading-text">Loading locations...</p>
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button id="applyFilters" class="btn">Apply Filters</button>
+                <button id="resetFilters" class="btn-secondary">Reset</button>
+            </div>
         </div>
+
+        <p id="resultCount" class="result-count"></p>
 
         <div class="artist-grid" id="artistGrid">
             {{range .}}

@@ -42,3 +42,22 @@ func TestFetchRelation(t *testing.T) {
 		t.Errorf("Expected relation ID 1, got %d", relation.ID)
 	}
 }
+
+// Integration test: verifies fetching all relations returns non-empty slice with valid IDs
+func TestFetchAllRelations(t *testing.T) {
+	relations, err := FetchAllRelations()
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(relations) == 0 {
+		t.Error("Expected relations, got empty slice")
+	}
+
+	for _, rel := range relations {
+		if rel.ID == 0 {
+			t.Error("Relation ID should not be 0")
+		}
+	}
+}

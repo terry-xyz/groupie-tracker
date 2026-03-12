@@ -29,13 +29,19 @@ A web application built with Go that displays information about music bands and 
   - Statistics (total concerts, countries visited)
 
 ### Interactive Features
-- **Search** - Search artists by name or band member
-- **Filter by Year** - Filter artists by their formation year (min/max range)
+- **Search** - Search artists by name, member, location, creation date, or first album date
+- **Autocomplete Suggestions** - Typing suggestions with category labels (artist/band, member, location, creation date, first album date)
+- **Filter by Creation Year** - Filter artists by their formation year (min/max range)
+- **Filter by First Album Year** - Filter artists by first album release year (min/max range)
+- **Filter by Member Count** - Checkbox filters for 1-7 members or 8+
+- **Filter by Location** - Searchable, country-grouped location checkboxes
 - **Sorting** - Sort artists by:
   - Name (A-Z)
   - Newest first (most recent formation)
   - Oldest first (earliest formation)
   - Default (by ID)
+- **Geolocalization** - Interactive world tour map on artist pages with geocoded concert markers, popups with dates, and route polylines (powered by Leaflet + OpenStreetMap)
+- **Result Count** - Displays number of matching artists after filtering
 
 ### User Experience
 - **Responsive Design** - Works on desktop, tablet, and mobile devices
@@ -54,13 +60,18 @@ groupie-tracker/
 │   ├── home.go            # Home page handler
 │   ├── artist.go          # Artist detail page handler
 │   ├── search.go          # Search/filter handler
+│   ├── suggestions.go     # Autocomplete suggestions endpoint
+│   ├── locations.go       # Location list endpoint
 │   ├── error.go           # Error page handler
-│   └── search_test.go     # Handler tests
+│   ├── search_test.go     # Search/filter tests
+│   └── suggestions_test.go # Suggestions tests
 ├── models/                 # Data structures
 │   └── artist.go          # Artist and Relation models
 ├── services/               # Business logic
-│   ├── api.go             # API client for external data
-│   └── api_test.go        # Service tests
+│   ├── api.go             # API client with caching
+│   ├── geocode.go         # Geocoding service (Nominatim)
+│   ├── api_test.go        # API service tests
+│   └── geocode_test.go    # Geocoding tests
 ├── templates/              # HTML templates
 │   ├── home.html          # Home page template
 │   ├── artist.html        # Artist detail template
@@ -108,15 +119,16 @@ http://localhost:8080
 
 ### Home Page
 - View all artists in a grid layout
-- Use the search bar to find specific artists or members
-- Apply filters to narrow down results by formation year
+- Use the search bar with autocomplete to find artists by name, member, location, or date
+- Apply filters: creation year range, first album year range, member count, locations
 - Sort artists using the dropdown menu
-- Click "Apply Filters" to search
+- Filters auto-apply on change, or click "Apply Filters"
 - Click "Reset" to clear all filters
 
 ### Artist Profile
 - Click on any artist card to view their detailed profile
 - See comprehensive statistics and information
+- View interactive world tour map with geocoded concert markers
 - Browse concert history organized by location
 - View all concert dates for each location
 
@@ -138,12 +150,23 @@ Min Year: 1970
 Max Year: 1980
 ```
 
+**Search by location:**
+```
+Search: "london"
+```
+
+**Filter by member count:**
+```
+Members: 4, 5 (checkboxes)
+```
+
 **Combine search and filters:**
 ```
 Search: "Rock"
 Min Year: 1960
 Max Year: 1990
 Sort By: Newest First
+Members: 4
 ```
 
 ## API Endpoints
@@ -162,10 +185,18 @@ Base URL: `https://groupietrackers.herokuapp.com/api`
 - `GET /artist/{id}` - Artist detail page
 - `GET /api/search` - Search and filter API
   - Query parameters:
-    - `q` - Search query (artist name or member)
+    - `q` - Search query (artist name, member, location, date)
     - `minYear` - Minimum formation year
     - `maxYear` - Maximum formation year
+    - `minAlbumYear` - Minimum first album year
+    - `maxAlbumYear` - Maximum first album year
+    - `members` - Comma-separated member counts (e.g., "1,4,8")
+    - `locations` - Comma-separated location keys
     - `sort` - Sort order (name, newest, oldest)
+- `GET /api/suggestions` - Autocomplete suggestions
+  - Query parameters:
+    - `q` - Search query (returns max 10 categorized suggestions)
+- `GET /api/locations` - All unique locations grouped by country
 - `GET /static/*` - Static files (CSS, JS)
 
 ## Technologies
@@ -181,6 +212,7 @@ Base URL: `https://groupietrackers.herokuapp.com/api`
 - **CSS3** - Styling (Glassmorphism design)
 - **JavaScript (ES6+)** - Client-side interactivity
 - **Fetch API** - AJAX requests
+- **Leaflet.js** - Interactive maps (OpenStreetMap tiles)
 
 ### Standards
 - **RESTful API** - API design pattern
@@ -209,10 +241,14 @@ go test ./... -cover
 ```
 
 ### Current Test Suite
-- ✅ API fetching (artists and relations)
-- ✅ Search functionality
-- ✅ Year filtering
+- ✅ API fetching (artists, relations, all relations)
+- ✅ Search functionality (name, member, location, date, creation year)
+- ✅ Year filtering (creation year and first album year)
+- ✅ Member count filtering (including 8+ logic)
+- ✅ Location filtering (with parent-region matching)
 - ✅ Sorting algorithms
+- ✅ Autocomplete suggestions (dedup, categories, cap)
+- ✅ Geocoding (location parsing, title case)
 - ✅ Error handling
 
 ## Configuration
