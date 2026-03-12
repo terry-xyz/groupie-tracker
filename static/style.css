@@ -13,6 +13,7 @@ body {
     position: relative;
 }
 
+/* Dark theme overlay: starts invisible (opacity:0), fades in when .dark-theme is applied */
 body::before {
     content: '';
     position: fixed;
@@ -23,7 +24,7 @@ body::before {
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     opacity: 0;
     transition: opacity 0.8s ease;
-    pointer-events: none;
+    pointer-events: none; /* Let clicks pass through to actual content behind the overlay */
     z-index: -1;
 }
 
@@ -32,11 +33,11 @@ body.light-theme {
 }
 
 body.dark-theme::before {
-    opacity: 1;
+    opacity: 1; /* Activates the dark gradient overlay defined in body::before */
 }
 
 header {
-    position: sticky;
+    position: sticky; /* Stays visible at the top while scrolling the artist grid */
     top: 0;
     background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(10px);
@@ -190,6 +191,7 @@ main {
     color: #333;
 }
 
+/* Spinning circle after "Loading..." text — transparent top border creates the spinning gap effect */
 .loading::after {
     content: '';
     display: inline-block;
@@ -218,7 +220,7 @@ main {
 
 .artist-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Auto-fill creates a responsive grid without media queries */
     gap: 2rem;
     animation: fadeIn 0.6s ease-in;
 }
@@ -618,6 +620,7 @@ body.dark-theme .no-concerts {
     color: white;
 }
 
+/* On mobile, stack hero image above info instead of side-by-side layout */
 @media (max-width: 768px) {
     .artist-hero {
         flex-direction: column;

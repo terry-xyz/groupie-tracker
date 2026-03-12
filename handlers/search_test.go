@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// Verifies text search matches against artist name and individual member names
 func TestMatchesSearch(t *testing.T) {
 	artist := models.Artist{
 		ID:      1,
@@ -20,7 +21,7 @@ func TestMatchesSearch(t *testing.T) {
 		{"freddie", true},
 		{"brian", true},
 		{"beatles", false},
-		{"", true},
+		{"", true}, // Empty query should match all artists (no filter)
 	}
 
 	for _, test := range tests {
@@ -31,6 +32,7 @@ func TestMatchesSearch(t *testing.T) {
 	}
 }
 
+// Verifies year range filter with optional min/max bounds
 func TestMatchesYearFilter(t *testing.T) {
 	artist := models.Artist{
 		ID:           1,
@@ -43,11 +45,11 @@ func TestMatchesYearFilter(t *testing.T) {
 		maxYear  string
 		expected bool
 	}{
-		{"1960", "1980", true},
-		{"1980", "2000", false},
-		{"", "1980", true},
-		{"1960", "", true},
-		{"", "", true},
+		{"1960", "1980", true},  // 1970 is within [1960, 1980]
+		{"1980", "2000", false}, // 1970 is before the 1980 minimum
+		{"", "1980", true},      // No lower bound, only upper
+		{"1960", "", true},      // No upper bound, only lower
+		{"", "", true},          // No bounds at all, everything passes
 	}
 
 	for _, test := range tests {
@@ -59,6 +61,7 @@ func TestMatchesYearFilter(t *testing.T) {
 	}
 }
 
+// Verifies sort order for name, newest, and oldest sort modes
 func TestSortArtists(t *testing.T) {
 	artists := []models.Artist{
 		{ID: 1, Name: "Queen", CreationDate: 1970},

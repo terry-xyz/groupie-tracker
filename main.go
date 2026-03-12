@@ -8,7 +8,7 @@ import (
 
 func main() {
 	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	http.Handle("/static/", http.StripPrefix("/static/", fs)) // Strip "/static/" so file paths resolve relative to the "static" directory
 
 	http.HandleFunc("/", handlers.HomeHandler)
 	http.HandleFunc("/artist/", handlers.ArtistHandler)

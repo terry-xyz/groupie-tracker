@@ -7,28 +7,27 @@ const resetBtn = document.getElementById('resetFilters');
 const artistGrid = document.getElementById('artistGrid');
 const themeToggle = document.getElementById('themeToggle');
 
-// Apply theme immediately (before page renders)
+// IIFE runs before DOM paint to prevent theme flash (FOUC) on page load
 (function() {
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.body.className = savedTheme || (prefersDark ? 'dark-theme' : 'light-theme');
+    document.body.className = savedTheme || (prefersDark ? 'dark-theme' : 'light-theme'); // Fall back to OS preference if no saved theme
 })();
 
-// Theme Management
 function initTheme() {
     const currentTheme = document.body.className;
     updateThemeIcon(currentTheme);
 }
 
 function updateThemeIcon(theme) {
-    themeToggle.textContent = theme === 'dark-theme' ? '☀️' : '🌙';
+    themeToggle.textContent = theme === 'dark-theme' ? '☀️' : '🌙'; // Show opposite icon to indicate what clicking will switch to
 }
 
 function toggleTheme() {
     const currentTheme = document.body.className;
     const newTheme = currentTheme === 'dark-theme' ? 'light-theme' : 'dark-theme';
     document.body.className = newTheme;
-    localStorage.setItem('theme', newTheme);
+    localStorage.setItem('theme', newTheme); // Persist choice so it survives page reloads and new visits
     updateThemeIcon(newTheme);
 }
 
@@ -49,7 +48,7 @@ if (resetBtn) {
 if (searchInput) {
     searchInput.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
-            applyFilters();
+            applyFilters(); // Enter key triggers search without needing to click the button
         }
     });
 }
@@ -68,6 +67,7 @@ async function applyFilters() {
     const maxYear = maxYearInput.value;
     const sort = sortBySelect.value;
 
+    // Only append non-empty params to avoid sending blank query values to the API
     const params = new URLSearchParams();
     if (query) params.append('q', query);
     if (minYear) params.append('minYear', minYear);
@@ -78,18 +78,18 @@ async function applyFilters() {
 
     try {
         const response = await fetch(`/api/search?${params}`);
-        
+
         if (!response.ok) {
             throw new Error('Failed to fetch artists');
         }
-        
+
         const artists = await response.json();
-        
+
         if (artists.error) {
-            showError(artists.error);
+            showError(artists.error); // API may return 200 OK but with an error field in the JSON body
             return;
         }
-        
+
         displayArtists(artists);
     } catch (error) {
         console.error('Error fetching artists:', error);
@@ -103,6 +103,7 @@ function displayArtists(artists) {
         return;
     }
 
+    // Build card HTML from API response; uses JSON field names (camelCase) from Go's json tags
     artistGrid.innerHTML = artists.map(artist => `
         <div class="artist-card">
             <img src="${artist.image}" alt="${artist.name}">
@@ -119,5 +120,5 @@ function resetFilters() {
     minYearInput.value = '';
     maxYearInput.value = '';
     sortBySelect.value = '';
-    location.reload();
+    location.reload(); // Reload restores the server-rendered artist grid instead of making another API call
 }

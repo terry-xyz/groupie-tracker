@@ -11,8 +11,9 @@ import (
 	"strings"
 )
 
+// SearchHandler handles GET /api/search requests, filtering and sorting artists by query params (q, sort, minYear, maxYear).
 func SearchHandler(w http.ResponseWriter, r *http.Request) {
-	query := strings.ToLower(r.URL.Query().Get("q"))
+	query := strings.ToLower(r.URL.Query().Get("q")) // Lowercased for case-insensitive matching later
 	sortBy := r.URL.Query().Get("sort")
 	minYear := r.URL.Query().Get("minYear")
 	maxYear := r.URL.Query().Get("maxYear")
@@ -26,6 +27,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filter first, then sort—avoids sorting entries that will be discarded
 	var results []models.Artist
 	for _, artist := range artists {
 		if matchesSearch(artist, query) && matchesYearFilter(artist, minYear, maxYear) {
@@ -39,15 +41,17 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+// matchesSearch returns true if the query matches the artist's name or any member name (case-insensitive).
 func matchesSearch(artist models.Artist, query string) bool {
 	if query == "" {
-		return true
+		return true // Empty query means no text filter, so all artists pass
 	}
 
 	if strings.Contains(strings.ToLower(artist.Name), query) {
 		return true
 	}
 
+	// Also search member names so users can find bands by member (e.g., "Freddie" finds Queen)
 	for _, member := range artist.Members {
 		if strings.Contains(strings.ToLower(member), query) {
 			return true
@@ -57,17 +61,19 @@ func matchesSearch(artist models.Artist, query string) bool {
 	return false
 }
 
+// matchesYearFilter returns true if the artist's creation year falls within the given range. Empty strings mean no bound.
 func matchesYearFilter(artist models.Artist, minYear, maxYear string) bool {
+	// Empty string means no bound on that side, so the filter is open-ended
 	if minYear != "" {
 		min, _ := strconv.Atoi(minYear)
-		if artist.CreationDate < min {
+		if artist.CreationDate < min { // Artist formed before the minimum year
 			return false
 		}
 	}
 
 	if maxYear != "" {
 		max, _ := strconv.Atoi(maxYear)
-		if artist.CreationDate > max {
+		if artist.CreationDate > max { // Artist formed after the maximum year
 			return false
 		}
 	}
@@ -75,6 +81,7 @@ func matchesYearFilter(artist models.Artist, minYear, maxYear string) bool {
 	return true
 }
 
+// sortArtists sorts the slice in-place by the given criteria: "newest", "oldest", "name", or default (by ID).
 func sortArtists(artists []models.Artist, sortBy string) {
 	sort.Slice(artists, func(i, j int) bool {
 		switch sortBy {
@@ -85,7 +92,7 @@ func sortArtists(artists []models.Artist, sortBy string) {
 		case "name":
 			return artists[i].Name < artists[j].Name
 		default:
-			return artists[i].ID < artists[j].ID
+			return artists[i].ID < artists[j].ID // Default: original API order (by ID)
 		}
 	})
 }

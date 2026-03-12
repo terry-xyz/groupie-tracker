@@ -10,8 +10,9 @@ import (
 
 const baseURL = "https://groupietrackers.herokuapp.com/api"
 
+// FetchArtists retrieves all artists from the Groupie Trackers API (/api/artists).
 func FetchArtists() ([]models.Artist, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second} // Timeout prevents hanging if the external API is slow or unreachable
 	resp, err := client.Get(baseURL + "/artists")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to API: %v", err)
@@ -29,6 +30,7 @@ func FetchArtists() ([]models.Artist, error) {
 	return artists, nil
 }
 
+// FetchRelation fetches all relations then filters by ID because the API has no single-relation endpoint
 func FetchRelation(id int) (*models.Relation, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(baseURL + "/relation")
@@ -41,6 +43,7 @@ func FetchRelation(id int) (*models.Relation, error) {
 		return nil, fmt.Errorf("API returned status code %d", resp.StatusCode)
 	}
 
+	// API wraps the relation array in {"index": [...]}, so we decode into a matching struct
 	var relations struct {
 		Index []models.Relation `json:"index"`
 	}
@@ -48,6 +51,7 @@ func FetchRelation(id int) (*models.Relation, error) {
 		return nil, fmt.Errorf("failed to parse relation data: %v", err)
 	}
 
+	// Linear search through all relations to find the one matching our artist ID
 	for _, rel := range relations.Index {
 		if rel.ID == id {
 			return &rel, nil

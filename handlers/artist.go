@@ -20,9 +20,10 @@ type ArtistPageData struct {
 	BandType       string
 }
 
+// ArtistHandler serves the detail page for a single artist, identified by the numeric ID in the URL path (e.g., /artist/3).
 func ArtistHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/artist/")
-	id, err := strconv.Atoi(idStr)
+	idStr := strings.TrimPrefix(r.URL.Path, "/artist/") // Extract the numeric ID from the URL path segment
+	id, err := strconv.Atoi(idStr)                       // Convert path segment to int for artist lookup
 	if err != nil {
 		ErrorHandler(w, http.StatusBadRequest, "Invalid artist ID")
 		return
@@ -35,6 +36,7 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Linear search because the API returns all artists without a single-artist endpoint
 	var foundArtist *models.Artist
 	for _, a := range artists {
 		if a.ID == id {
@@ -48,7 +50,7 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relation, err := services.FetchRelation(id)
+	relation, err := services.FetchRelation(id) // Relation links this artist to their concert locations and dates
 	if err != nil {
 		log.Printf("Error fetching relation for artist %d: %v", id, err)
 	}
@@ -58,8 +60,8 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		Relation:       relation,
 		TotalConcerts:  calculateTotalConcerts(relation),
 		TotalCountries: calculateTotalCountries(relation),
-		YearsActive:    time.Now().Year() - foundArtist.CreationDate,
-		BandType:       getBandType(len(foundArtist.Members)),
+		YearsActive:    time.Now().Year() - foundArtist.CreationDate, // Years active = current year minus band formation year
+		BandType:       getBandType(len(foundArtist.Members)),        // Classify group size (solo, duo, trio, etc.)
 	}
 
 	tmpl, err := template.ParseFiles("templates/artist.html")
@@ -72,32 +74,35 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, pageData)
 }
 
+// calculateTotalConcerts returns the total number of concert dates across all locations for an artist.
 func calculateTotalConcerts(relation *models.Relation) int {
 	if relation == nil {
 		return 0
 	}
 	total := 0
 	for _, dates := range relation.DatesLocations {
-		total += len(dates)
+		total += len(dates) // Each location maps to multiple concert dates, so we sum all date slices
 	}
 	return total
 }
 
+// calculateTotalCountries returns the number of unique countries extracted from the relation's location keys.
 func calculateTotalCountries(relation *models.Relation) int {
 	if relation == nil {
 		return 0
 	}
-	countries := make(map[string]bool)
+	countries := make(map[string]bool) // Map deduplicates country names so we count unique ones
 	for location := range relation.DatesLocations {
-		parts := strings.Split(location, "-")
+		parts := strings.Split(location, "-") // Location format is "city-country", so we split on "-"
 		if len(parts) > 0 {
-			country := strings.TrimSpace(parts[len(parts)-1])
+			country := strings.TrimSpace(parts[len(parts)-1]) // Last segment is always the country name
 			countries[country] = true
 		}
 	}
 	return len(countries)
 }
 
+// getBandType returns a human-readable label for the group size (e.g., "Solo Artist", "Duo", "Trio").
 func getBandType(memberCount int) string {
 	switch memberCount {
 	case 1:

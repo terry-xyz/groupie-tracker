@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// Integration test: hits the real Groupie Trackers API to verify connectivity and response shape
 func TestFetchArtists(t *testing.T) {
 	artists, err := FetchArtists()
 
@@ -25,6 +26,7 @@ func TestFetchArtists(t *testing.T) {
 	}
 }
 
+// Integration test: verifies relation fetch and ID filtering for a known artist (ID 1)
 func TestFetchRelation(t *testing.T) {
 	relation, err := FetchRelation(1)
 
