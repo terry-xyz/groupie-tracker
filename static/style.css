@@ -309,6 +309,14 @@ body.dark-theme .artist-card p {
     transform: scale(0.98);
 }
 
+#applyFilters {
+    margin-top: 0;
+    background-color: #5568d3;
+}
+body.dark-theme #applyFilters {
+    background-color: #667eea;
+}
+
 .artist-detail {
     background: white;
     padding: 2rem;
@@ -773,7 +781,6 @@ body.dark-theme .suggestion-category {
     display: flex;
     gap: 1rem;
     width: 100%;
-    max-width: 400px;
 }
 
 .slider-container input[type="range"] {
@@ -993,6 +1000,7 @@ body.dark-theme .popup-date {
 }
 
 /* --- Dark theme adjustments for filter inputs --- */
+
 body.dark-theme .search-container input[type="text"],
 body.dark-theme .filters input[type="number"],
 body.dark-theme .filters select,
@@ -1005,7 +1013,10 @@ body.dark-theme .location-search {
 body.dark-theme .search-container input[type="text"]::placeholder,
 body.dark-theme .filters input[type="number"]::placeholder,
 body.dark-theme .location-search::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    color: white;
+}
+body.dark-theme .location-search:focus {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 body.dark-theme .search-container input[type="text"]:focus,
