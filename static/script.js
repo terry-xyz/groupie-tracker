@@ -12,6 +12,9 @@ const suggestionsDropdown = document.getElementById('suggestionsDropdown');
 const locationSearch = document.getElementById('locationSearch');
 const locationCheckboxes = document.getElementById('locationCheckboxes');
 const resultCount = document.getElementById('resultCount');
+const minMembersSlider = document.getElementById('minMembers');
+const maxMembersSlider = document.getElementById('maxMembers');
+const memberRangeLabel = document.getElementById('memberRangeLabel');
 
 // IIFE runs before DOM paint to prevent theme flash (FOUC) on page load
 (function() {
@@ -204,6 +207,42 @@ if (resetBtn) {
     resetBtn.addEventListener('click', resetFilters);
 }
 
+// --- Member slider logic ---
+function updateMemberLabel() {
+    if (!memberRangeLabel || !minMembersSlider || !maxMembersSlider) return;
+    var min = parseInt(minMembersSlider.value);
+    var max = parseInt(maxMembersSlider.value);
+    
+    // Ensure min doesn't exceed max
+    if (min > max) {
+        minMembersSlider.value = max;
+        min = max;
+    }
+    
+    var minLabel = min.toString();
+    var maxLabel = max === 8 ? '8+' : max.toString();
+    memberRangeLabel.textContent = minLabel + ' - ' + maxLabel;
+}
+
+// Initialize member label on page load
+if (minMembersSlider && maxMembersSlider) {
+    updateMemberLabel();
+}
+
+if (minMembersSlider) {
+    minMembersSlider.addEventListener('input', function() {
+        updateMemberLabel();
+        debouncedApply();
+    });
+}
+
+if (maxMembersSlider) {
+    maxMembersSlider.addEventListener('input', function() {
+        updateMemberLabel();
+        debouncedApply();
+    });
+}
+
 // --- Auto-trigger filters on change ---
 if (sortBySelect) {
     sortBySelect.addEventListener('change', applyFilters);
@@ -215,11 +254,6 @@ var debouncedApply = debounce(applyFilters, 400);
     if (input) {
         input.addEventListener('input', debouncedApply);
     }
-});
-
-// Auto-trigger on member checkbox change
-document.querySelectorAll('input[name="members"]').forEach(function(cb) {
-    cb.addEventListener('change', applyFilters);
 });
 
 function showLoading() {
@@ -242,11 +276,15 @@ async function applyFilters() {
     var maxAlbumYear = maxAlbumYearInput ? maxAlbumYearInput.value : '';
     var sort = sortBySelect ? sortBySelect.value : '';
 
-    // Collect checked member counts
+    // Collect member range from sliders
     var members = [];
-    document.querySelectorAll('input[name="members"]:checked').forEach(function(cb) {
-        members.push(cb.value);
-    });
+    if (minMembersSlider && maxMembersSlider) {
+        var min = parseInt(minMembersSlider.value);
+        var max = parseInt(maxMembersSlider.value);
+        for (var i = min; i <= max; i++) {
+            members.push(i.toString());
+        }
+    }
 
     // Collect checked locations
     var locations = [];
@@ -322,10 +360,10 @@ function resetFilters() {
     if (sortBySelect) sortBySelect.value = '';
     if (locationSearch) locationSearch.value = '';
 
-    // Uncheck all member checkboxes
-    document.querySelectorAll('input[name="members"]:checked').forEach(function(cb) {
-        cb.checked = false;
-    });
+    // Reset member sliders
+    if (minMembersSlider) minMembersSlider.value = '1';
+    if (maxMembersSlider) maxMembersSlider.value = '8';
+    updateMemberLabel();
 
     // Uncheck all location checkboxes
     document.querySelectorAll('input[name="locations"]:checked').forEach(function(cb) {

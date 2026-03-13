@@ -41,18 +41,12 @@
                 </select>
             </div>
 
-            <!-- Member count checkboxes -->
-            <div class="filter-group checkbox-group">
-                <label>Members:</label>
-                <div class="checkbox-list">
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="1"> 1</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="2"> 2</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="3"> 3</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="4"> 4</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="5"> 5</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="6"> 6</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="7"> 7</label>
-                    <label class="checkbox-label"><input type="checkbox" name="members" value="8"> 8+</label>
+            <!-- Member count slider -->
+            <div class="filter-group slider-group">
+                <label>Members: <span id="memberRangeLabel">1 - 8+</span></label>
+                <div class="slider-container">
+                    <input type="range" id="minMembers" min="1" max="8" value="1" step="1">
+                    <input type="range" id="maxMembers" min="1" max="8" value="8" step="1">
                 </div>
             </div>
 
