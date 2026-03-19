@@ -118,14 +118,77 @@
     <script src="/static/script.js"></script>
     {{if .Locations}}
     <script>
-    (function() {
-        var locations = {{toJSON .Locations}};
+    // Embed server data synchronously, but defer map init until window load so
+    // that wheel events accumulated during page resource loading (images, tiles)
+    // are drained before Leaflet attaches its scroll-wheel zoom listener.
+    // Without this deferral, those queued events fire in a burst within Leaflet's
+    // 40ms wheelDebounceTime window, summing to a large delta that Leaflet
+    // converts to 4+ zoom steps per apparent single scroll.
+    var _mapLocations = {{toJSON .Locations}};
+
+    window.addEventListener('load', function() {
+        var locations = _mapLocations;
         if (!locations || locations.length === 0) return;
 
-        var map = L.map('concert-map');
+        var worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
+        var map = L.map('concert-map', {
+            worldCopyJump: false,
+            maxBounds: worldBounds,
+            maxBoundsViscosity: 1.0,
+            scrollWheelZoom: false,
+            zoomSnap: 0
+        });
+
+        // Scroll zoom without grey flash:
+        // While scrolling, CSS-scale the existing tiles (no tile requests).
+        // When scrolling stops, apply the real zoom once (tiles load once).
+        // Scroll zoom using Leaflet's own smooth animation — same as +/- buttons.
+        // We wait until enough delta has accumulated before firing each step so
+        // that every animation is visibly meaningful. Without this threshold the
+        // first step (one tiny event) is invisible and the map looks frozen,
+        // creating the "old scenery" after-image effect.
+        var DIVISOR = 400;
+        var STEP_THRESHOLD = 0.08; // min zoom-level change per animation step (~3 events)
+        var _mousePoint = null;
+        var _accDelta = 0;
+        var _animating = false;
+        var _pendingTimer = null;
+
+        function fireZoom() {
+            clearTimeout(_pendingTimer);
+            if (_accDelta === 0 || _animating) return;
+            var zoomDelta = -_accDelta / DIVISOR;
+            if (Math.abs(zoomDelta) < STEP_THRESHOLD) {
+                // Not enough delta yet — wait for more events, or fire after 300ms silence
+                _pendingTimer = setTimeout(fireZoom, 300);
+                return;
+            }
+            _animating = true;
+            var delta = _accDelta;
+            _accDelta = 0;
+            map.setZoomAround(_mousePoint, map.getZoom() + (-delta / DIVISOR));
+        }
+
+        map.on('zoomend', function() {
+            _animating = false;
+            fireZoom();
+        });
+
+        map.getContainer().addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (!_animating && _accDelta === 0) {
+                _mousePoint = map.mouseEventToContainerPoint(e);
+            }
+            _accDelta += e.deltaY;
+            if (!_animating) {
+                fireZoom();
+            }
+        }, { passive: false });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 18
+            maxZoom: 18,
+            noWrap: true,
+            keepBuffer: 4
         }).addTo(map);
 
         var bounds = [];
@@ -165,7 +228,7 @@
                 opacity: 0.7
             }).addTo(map);
         }
-    })();
+    });
     </script>
     {{end}}
 </body>
