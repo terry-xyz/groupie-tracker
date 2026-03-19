@@ -969,18 +969,6 @@ body.dark-theme .map-section h3 {
     user-select: none;
 }
 
-.map-loading {
-    height: 450px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    color: #667eea;
-    border-radius: 12px;
-    background: rgba(102, 126, 234, 0.05);
-    border: 2px dashed rgba(102, 126, 234, 0.3);
-}
-
 /* Leaflet popup overrides */
 .leaflet-popup-content-wrapper {
     background: rgba(255, 255, 255, 0.92);

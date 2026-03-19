@@ -21,6 +21,7 @@ func main() {
 	http.HandleFunc("/api/search", handlers.SearchHandler)
 	http.HandleFunc("/api/suggestions", handlers.SuggestionsHandler)
 	http.HandleFunc("/api/locations", handlers.LocationsHandler)
+	http.HandleFunc("/api/artist-geo", handlers.ArtistGeoHandler)
 
 	// Pre-warm caches in the background so the server starts immediately
 	go func() {

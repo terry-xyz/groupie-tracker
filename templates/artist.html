@@ -74,12 +74,14 @@
                 </div>
             </div>
 
+            {{if .Relation}}
             <!-- World Tour Map -->
             <div class="map-section">
                 <h3>🗺️ World Tour Map</h3>
-                <div id="map-loading" class="map-loading">📍 Loading locations...</div>
-                <div id="concert-map" style="display:none"></div>
+                <div id="concert-map"></div>
+                <div id="map-loading" style="text-align:center;padding:1rem;color:#888;">Loading map locations...</div>
             </div>
+            {{end}}
 
             {{if .Relation}}
             <!-- Concert Timeline -->
@@ -115,28 +117,31 @@
         </div>
     </main>
     <script src="/static/script.js"></script>
+    {{if .Relation}}
     <script>
-    // Fetch concert locations asynchronously so the page renders immediately.
-    // The map section shows "Loading locations..." until the geocoding API responds.
-    fetch('/api/artist/{{.Artist.ID}}/locations')
-        .then(function(r) { return r.json(); })
-        .then(function(locations) {
-            var loadingEl = document.getElementById('map-loading');
-            var mapEl = document.getElementById('concert-map');
-            if (!locations || locations.length === 0) {
-                loadingEl.textContent = 'No location data available.';
-                return;
-            }
-            loadingEl.style.display = 'none';
-            mapEl.style.display = 'block';
-            initMap(locations);
-        })
-        .catch(function() {
-            document.getElementById('map-loading').textContent = 'Failed to load locations.';
-        });
+    // Fetch geocoded locations asynchronously so the page renders instantly.
+    // Map init is deferred until window load so that wheel events accumulated
+    // during page resource loading are drained before Leaflet attaches its
+    // scroll-wheel zoom listener.
+    window.addEventListener('load', function() {
+        var loadingEl = document.getElementById('map-loading');
+        fetch('/api/artist-geo?id={{.Artist.ID}}')
+            .then(function(r) { return r.json(); })
+            .then(function(locations) {
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (!locations || locations.length === 0) {
+                    var mapEl = document.getElementById('concert-map');
+                    if (mapEl) mapEl.style.display = 'none';
+                    return;
+                }
+                initMap(locations);
+            })
+            .catch(function() {
+                if (loadingEl) loadingEl.textContent = 'Failed to load map locations.';
+            });
+    });
 
     function initMap(locations) {
-        if (!locations || locations.length === 0) return;
 
         var worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
         // Minimum zoom where world tiles (256px each) cover the container width — prevents grey side bars
@@ -252,5 +257,6 @@
         }
     }
     </script>
+    {{end}}
 </body>
 </html>

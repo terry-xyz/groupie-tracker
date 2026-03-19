@@ -5,16 +5,23 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sync"
 )
 
-var homeTmpl *template.Template
+var (
+	homeTmpl     *template.Template
+	homeTmplOnce sync.Once
+)
 
-func init() {
-	var err error
-	homeTmpl, err = template.ParseFiles("templates/home.html")
-	if err != nil {
-		log.Fatalf("Error parsing home template: %v", err)
-	}
+func getHomeTmpl() *template.Template {
+	homeTmplOnce.Do(func() {
+		var err error
+		homeTmpl, err = template.ParseFiles("templates/home.html")
+		if err != nil {
+			log.Fatalf("Error parsing home template: %v", err)
+		}
+	})
+	return homeTmpl
 }
 
 // HomeHandler serves the main page by fetching all artists from the API and rendering the home template.
@@ -31,5 +38,5 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	homeTmpl.Execute(w, artists) // Pass the full artist slice as template data so home.html can render the grid
+	getHomeTmpl().Execute(w, artists) // Pass the full artist slice as template data so home.html can render the grid
 }

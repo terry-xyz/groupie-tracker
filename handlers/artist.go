@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"groupie-tracker/models"
 	"groupie-tracker/services"
 	"html/template"
@@ -9,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -19,27 +19,22 @@ type ArtistPageData struct {
 	TotalCountries int
 	YearsActive    int
 	BandType       string
-	Locations      []services.GeoLocation
 }
 
-var artistTmpl *template.Template
+var (
+	artistTmpl     *template.Template
+	artistTmplOnce sync.Once
+)
 
-func init() {
-	funcMap := template.FuncMap{"toJSON": toJSON}
-	var err error
-	artistTmpl, err = template.New("artist.html").Funcs(funcMap).ParseFiles("templates/artist.html")
-	if err != nil {
-		log.Fatalf("Error parsing artist template: %v", err)
-	}
-}
-
-// toJSON serializes a value to JSON for embedding in templates.
-func toJSON(v interface{}) template.JS {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return template.JS("[]")
-	}
-	return template.JS(b)
+func getArtistTmpl() *template.Template {
+	artistTmplOnce.Do(func() {
+		var err error
+		artistTmpl, err = template.ParseFiles("templates/artist.html")
+		if err != nil {
+			log.Fatalf("Error parsing artist template: %v", err)
+		}
+	})
+	return artistTmpl
 }
 
 // ArtistHandler serves the detail page for a single artist, identified by the numeric ID in the URL path (e.g., /artist/3).
@@ -86,12 +81,6 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Geocode concert locations for the map, using per-artist cache
-	var geoLocations []services.GeoLocation
-	if relation != nil {
-		geoLocations = services.GetGeoLocations(id, relation.DatesLocations)
-	}
-
 	pageData := ArtistPageData{
 		Artist:         *foundArtist,
 		Relation:       relation,
@@ -99,10 +88,9 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		TotalCountries: calculateTotalCountries(relation),
 		YearsActive:    time.Now().Year() - foundArtist.CreationDate, // Years active = current year minus band formation year
 		BandType:       getBandType(len(foundArtist.Members)),        // Classify group size (solo, duo, trio, etc.)
-		Locations:      geoLocations,
 	}
 
-	artistTmpl.Execute(w, pageData)
+	getArtistTmpl().Execute(w, pageData)
 }
 
 // calculateTotalConcerts returns the total number of concert dates across all locations for an artist.
