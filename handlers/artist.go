@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"groupie-tracker/models"
 	"groupie-tracker/services"
 	"html/template"
@@ -18,11 +19,30 @@ type ArtistPageData struct {
 	TotalCountries int
 	YearsActive    int
 	BandType       string
+	Locations      []services.GeoLocation
+}
+
+var artistTmpl *template.Template
+
+func init() {
+	funcMap := template.FuncMap{"toJSON": toJSON}
+	var err error
+	artistTmpl, err = template.New("artist.html").Funcs(funcMap).ParseFiles("templates/artist.html")
+	if err != nil {
+		log.Fatalf("Error parsing artist template: %v", err)
+	}
+}
+
+// toJSON serializes a value to JSON for embedding in templates.
+func toJSON(v interface{}) template.JS {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return template.JS("[]")
+	}
+	return template.JS(b)
 }
 
 // ArtistHandler serves the detail page for a single artist, identified by the numeric ID in the URL path (e.g., /artist/3).
-// Geocoding is intentionally omitted here — the browser fetches /api/artist/{id}/locations asynchronously
-// so the page renders immediately without waiting for Nominatim.
 func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/artist/") // Extract the numeric ID from the URL path segment
 	id, err := strconv.Atoi(idStr)                       // Convert path segment to int for artist lookup
@@ -31,7 +51,7 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	artists, err := services.FetchArtists()
+	artists, err := services.GetArtists()
 	if err != nil {
 		log.Printf("Error fetching artists: %v", err)
 		ErrorHandler(w, http.StatusInternalServerError, "Unable to load artist data")
@@ -52,9 +72,24 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relation, err := services.FetchRelation(id) // Relation links this artist to their concert locations and dates
+	// Use cached relations and find the one for this artist
+	var relation *models.Relation
+	relations, err := services.GetAllRelations()
 	if err != nil {
-		log.Printf("Error fetching relation for artist %d: %v", id, err)
+		log.Printf("Error fetching relations for artist %d: %v", id, err)
+	} else {
+		for i := range relations {
+			if relations[i].ID == id {
+				relation = &relations[i]
+				break
+			}
+		}
+	}
+
+	// Geocode concert locations for the map, using per-artist cache
+	var geoLocations []services.GeoLocation
+	if relation != nil {
+		geoLocations = services.GetGeoLocations(id, relation.DatesLocations)
 	}
 
 	pageData := ArtistPageData{
@@ -64,16 +99,10 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		TotalCountries: calculateTotalCountries(relation),
 		YearsActive:    time.Now().Year() - foundArtist.CreationDate, // Years active = current year minus band formation year
 		BandType:       getBandType(len(foundArtist.Members)),        // Classify group size (solo, duo, trio, etc.)
+		Locations:      geoLocations,
 	}
 
-	tmpl, err := template.ParseFiles("templates/artist.html")
-	if err != nil {
-		log.Printf("Error parsing template: %v", err)
-		ErrorHandler(w, http.StatusInternalServerError, "Unable to load page")
-		return
-	}
-
-	tmpl.Execute(w, pageData)
+	artistTmpl.Execute(w, pageData)
 }
 
 // calculateTotalConcerts returns the total number of concert dates across all locations for an artist.

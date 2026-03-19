@@ -3,8 +3,10 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +27,12 @@ type GeoLocation struct {
 var (
 	geocodeCacheMu sync.RWMutex
 	geocodeCache   = make(map[string][2]float64)
+)
+
+// Per-artist geocode cache to avoid re-geocoding on repeated page visits
+var (
+	artistGeoMu    sync.RWMutex
+	artistGeoCache = make(map[int][]GeoLocation)
 )
 
 // Rate limiter: Nominatim free tier allows 1 request per second
@@ -118,12 +126,82 @@ func geocodeAddress(query string) (lat, lng float64, err error) {
 	fmt.Sscanf(results[0].Lat, "%f", &latF)
 	fmt.Sscanf(results[0].Lon, "%f", &lngF)
 
-	// Cache the result
+	// Cache the result and persist to disk
 	geocodeCacheMu.Lock()
 	geocodeCache[query] = [2]float64{latF, lngF}
 	geocodeCacheMu.Unlock()
 
+	saveGeocodeCache("data/geocode_cache.json")
+
 	return latF, lngF, nil
+}
+
+// GetGeoLocations returns cached geocode results for an artist, geocoding on the first call.
+func GetGeoLocations(artistID int, datesLocations map[string][]string) []GeoLocation {
+	artistGeoMu.RLock()
+	if locs, ok := artistGeoCache[artistID]; ok {
+		artistGeoMu.RUnlock()
+		return locs
+	}
+	artistGeoMu.RUnlock()
+
+	locs := GeocodeLocations(datesLocations)
+
+	artistGeoMu.Lock()
+	artistGeoCache[artistID] = locs
+	artistGeoMu.Unlock()
+
+	return locs
+}
+
+// LoadGeocodeCache reads a previously saved geocode cache from disk into memory.
+func LoadGeocodeCache(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // No cache file yet — not an error
+		}
+		return fmt.Errorf("failed to read geocode cache: %v", err)
+	}
+
+	var cache map[string][2]float64
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return fmt.Errorf("failed to parse geocode cache: %v", err)
+	}
+
+	geocodeCacheMu.Lock()
+	for k, v := range cache {
+		geocodeCache[k] = v
+	}
+	geocodeCacheMu.Unlock()
+
+	log.Printf("Loaded %d geocode entries from %s", len(cache), path)
+	return nil
+}
+
+// saveGeocodeCache writes the current in-memory geocode cache to disk.
+func saveGeocodeCache(path string) {
+	geocodeCacheMu.RLock()
+	snapshot := make(map[string][2]float64, len(geocodeCache))
+	for k, v := range geocodeCache {
+		snapshot[k] = v
+	}
+	geocodeCacheMu.RUnlock()
+
+	if err := os.MkdirAll("data", 0755); err != nil {
+		log.Printf("Failed to create data dir: %v", err)
+		return
+	}
+
+	data, err := json.Marshal(snapshot)
+	if err != nil {
+		log.Printf("Failed to marshal geocode cache: %v", err)
+		return
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		log.Printf("Failed to write geocode cache: %v", err)
+	}
 }
 
 // GeocodeLocations geocodes all locations from an artist's DatesLocations map.
