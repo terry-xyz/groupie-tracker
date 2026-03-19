@@ -131,12 +131,17 @@
         if (!locations || locations.length === 0) return;
 
         var worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
+        // Minimum zoom where world tiles (256px each) cover the container width — prevents grey side bars
+        var _mapContainerEl = document.getElementById('concert-map');
+        var _containerWidth = (_mapContainerEl && _mapContainerEl.offsetWidth) || 960;
+        var autoMinZoom = Math.max(1, Math.ceil(Math.log2(_mapContainerEl.offsetWidth / 256)));
         var map = L.map('concert-map', {
             worldCopyJump: false,
             maxBounds: worldBounds,
             maxBoundsViscosity: 1.0,
             scrollWheelZoom: false,
-            zoomSnap: 0
+            zoomSnap: 0,
+            minZoom: autoMinZoom
         });
 
         // Scroll zoom without grey flash:
@@ -163,10 +168,19 @@
                 _pendingTimer = setTimeout(fireZoom, 300);
                 return;
             }
+            var currentZoom = map.getZoom();
+            var targetZoom = currentZoom - _accDelta / DIVISOR;
+            // Clamp to map zoom bounds
+            targetZoom = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), targetZoom));
+            // If already at the zoom limit in the scroll direction, discard delta so
+            // _animating is never set and the wheel handler keeps working.
+            if (Math.abs(targetZoom - currentZoom) < 0.001) {
+                _accDelta = 0;
+                return;
+            }
             _animating = true;
-            var delta = _accDelta;
             _accDelta = 0;
-            map.setZoomAround(_mousePoint, map.getZoom() + (-delta / DIVISOR));
+            map.setZoomAround(_mousePoint, targetZoom);
         }
 
         map.on('zoomend', function() {
