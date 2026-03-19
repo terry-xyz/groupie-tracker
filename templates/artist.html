@@ -88,7 +88,7 @@
             <div class="concerts-section">
                 <h3>🎸 Concert History</h3>
                 <p class="concerts-summary">
-                    {{.Artist.Name}} has performed {{.TotalConcerts}} concerts across {{.TotalCountries}} countries.
+                    {{.Artist.Name}} has performed {{.TotalConcerts}} concert{{if ne .TotalConcerts 1}}s{{end}} across {{.TotalCountries}} countr{{if eq .TotalCountries 1}}y{{else}}ies{{end}}.
                 </p>
                 <div class="concerts-grid">
                     {{range $location, $dates := .Relation.DatesLocations}}
