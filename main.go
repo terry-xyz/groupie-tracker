@@ -15,6 +15,7 @@ func main() {
 	http.HandleFunc("/api/search", handlers.SearchHandler)
 	http.HandleFunc("/api/suggestions", handlers.SuggestionsHandler)
 	http.HandleFunc("/api/locations", handlers.LocationsHandler)
+	http.HandleFunc("/api/artist/", handlers.ArtistLocationsHandler)
 
 	log.Println("Server starting on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

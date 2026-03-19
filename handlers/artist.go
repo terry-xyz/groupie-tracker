@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"groupie-tracker/models"
 	"groupie-tracker/services"
 	"html/template"
@@ -19,19 +18,11 @@ type ArtistPageData struct {
 	TotalCountries int
 	YearsActive    int
 	BandType       string
-	Locations      []services.GeoLocation
-}
-
-// toJSON serializes a value to JSON for embedding in templates.
-func toJSON(v interface{}) template.JS {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return template.JS("[]")
-	}
-	return template.JS(b)
 }
 
 // ArtistHandler serves the detail page for a single artist, identified by the numeric ID in the URL path (e.g., /artist/3).
+// Geocoding is intentionally omitted here — the browser fetches /api/artist/{id}/locations asynchronously
+// so the page renders immediately without waiting for Nominatim.
 func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/artist/") // Extract the numeric ID from the URL path segment
 	id, err := strconv.Atoi(idStr)                       // Convert path segment to int for artist lookup
@@ -66,12 +57,6 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error fetching relation for artist %d: %v", id, err)
 	}
 
-	// Geocode concert locations for the map
-	var geoLocations []services.GeoLocation
-	if relation != nil {
-		geoLocations = services.GeocodeLocations(relation.DatesLocations)
-	}
-
 	pageData := ArtistPageData{
 		Artist:         *foundArtist,
 		Relation:       relation,
@@ -79,14 +64,9 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		TotalCountries: calculateTotalCountries(relation),
 		YearsActive:    time.Now().Year() - foundArtist.CreationDate, // Years active = current year minus band formation year
 		BandType:       getBandType(len(foundArtist.Members)),        // Classify group size (solo, duo, trio, etc.)
-		Locations:      geoLocations,
 	}
 
-	funcMap := template.FuncMap{
-		"toJSON": toJSON,
-	}
-
-	tmpl, err := template.New("artist.html").Funcs(funcMap).ParseFiles("templates/artist.html")
+	tmpl, err := template.ParseFiles("templates/artist.html")
 	if err != nil {
 		log.Printf("Error parsing template: %v", err)
 		ErrorHandler(w, http.StatusInternalServerError, "Unable to load page")
