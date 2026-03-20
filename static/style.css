@@ -1011,6 +1011,11 @@ body.dark-theme .location-search {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
+body.dark-theme .filters select option {
+    background: white;
+    color: #1a1a2e;
+}
+
 body.dark-theme .search-container input[type="text"]::placeholder,
 body.dark-theme .filters input[type="number"]::placeholder,
 body.dark-theme .location-search::placeholder {
