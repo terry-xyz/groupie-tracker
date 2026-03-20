@@ -158,6 +158,10 @@ main {
     width: 100px;
 }
 
+.filter-group select {
+    color: #666;
+}
+
 .btn-secondary {
     padding: 0.5rem 1rem;
     background: #666;
