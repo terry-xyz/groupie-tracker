@@ -89,9 +89,8 @@ fmt.Println(artists[0].Name)
 - **Good:** Ordering food delivery and **checking the bag** before eating — right items? Right temperature? Nothing missing?
 
 ### Code Location
-- `handlers/home.go:15-19` — error check after FetchArtists
-- `handlers/artist.go:30-34` — error check after FetchArtists
-- `handlers/artist.go:48-52` — error check after FetchRelation
+- `handlers/home.go` — error check after `GetArtists()`
+- `handlers/artist.go` — error check after `GetArtists()` and `GetAllRelations()`
 - `services/api.go:14-28` — error wrapping with `fmt.Errorf`
 
 ---
@@ -154,9 +153,8 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 - **Good:** A bouncer who checks ID at the door → wrong? **Go home.** Dress code? **Go home.** Guest list? **Go home.** Only people who pass ALL checks get in.
 
 ### Code Location
-- `handlers/home.go:11-14` — early return for wrong path
-- `handlers/artist.go:25-28` — early return for invalid ID
-- `handlers/artist.go:30-34` — early return for fetch failure
+- `handlers/home.go` — early return for wrong path
+- `handlers/artist.go` — early return for invalid ID, fetch failure, or artist not found
 
 ---
 
@@ -222,16 +220,19 @@ Put data fetching in a **service layer** (`services/`). Handlers call services, 
 ### The Code
 
 ```go
-// services/api.go — ONLY responsible for fetching data
-func FetchArtists() ([]models.Artist, error) {
-    client := &http.Client{Timeout: 10 * time.Second}
-    resp, err := client.Get(baseURL + "/artists")
-    // ... decode JSON, return structs
+// services/api.go — ONLY responsible for fetching and caching data
+func GetArtists() ([]models.Artist, error) {
+    // Returns from 5-min cache if fresh; otherwise calls FetchArtists()
+}
+
+// services/geocode.go — ONLY responsible for coordinate lookups
+func GetGeoLocations(artistID int, datesLocations map[string][]string) []GeoLocation {
+    // Returns from per-artist cache; otherwise geocodes via Nominatim
 }
 
 // handlers/home.go — ONLY responsible for handling requests
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-    artists, err := services.FetchArtists()  // Delegate data fetching
+    artists, err := services.GetArtists()  // Delegate data fetching (cached)
     // ... render template with the data
 }
 ```
@@ -342,25 +343,25 @@ ErrorHandler(w, 404, "Artist not found")    // Uses custom message
 When searching, reloading the entire page for every keystroke is slow and jarring. Users expect instant feedback.
 
 ### The Solution (The Pattern)
-Use **AJAX** (Asynchronous JavaScript) to fetch data in the background, then update the page without a reload.
+Use **AJAX** (Asynchronous JavaScript) to fetch data in the background, then update the page without a reload. This is used for two things: search/filter results and map geocoding.
 
 ### The Code
 
 ```javascript
-// static/script.js
-
-// 1. Build the search URL from form inputs
+// static/script.js — search results
 async function applyFilters() {
-    const query = document.getElementById('search').value;
-    const url = `/api/search?q=${query}&minYear=${minYear}&maxYear=${maxYear}&sort=${sort}`;
-
-    // 2. Fetch results WITHOUT reloading the page
+    const url = `/api/search?q=${query}&...`;
     const response = await fetch(url);
     const data = await response.json();
-
-    // 3. Rebuild the artist grid with new data
     displayArtists(data);
 }
+
+// templates/artist.html — async map loading (page renders instantly, map fills in after)
+window.addEventListener('load', function() {
+    fetch('/api/artist-geo?id={{.Artist.ID}}')
+        .then(r => r.json())
+        .then(locations => initMap(locations));
+});
 
 // 4. Create HTML cards from JSON data
 function displayArtists(artists) {

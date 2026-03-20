@@ -170,12 +170,12 @@ Every request follows this pattern. Let's trace each one.
 2. **Router matches `/artist/`** — sends request to `ArtistHandler`
 3. **Handler extracts "3" from the URL** — `strings.TrimPrefix(r.URL.Path, "/artist/")` → `"3"`
 4. **Converts "3" to integer** — `strconv.Atoi("3")` → `3`
-5. **Fetches ALL artists** — scans the list to find the one with `ID == 3`
-6. **Fetches relation data** — concert locations and dates for artist 3
+5. **Fetches ALL artists from cache** — `GetArtists()` returns the in-memory cached list; scans to find `ID == 3`
+6. **Fetches ALL relations from cache** — `GetAllRelations()` returns cached relations; scans for `ID == 3`
 7. **Calculates stats** — total concerts, countries, years active, band type
 8. **Packs everything into `ArtistPageData`** — one struct with all the data the template needs
-9. **Template renders the profile** — HTML with artist info, stats, and concert history
-10. **Browser displays the page**
+9. **Page renders instantly** — HTML with artist info, stats, and concert history
+10. **Browser displays the page, then fetches map data** — after page load, JavaScript calls `GET /api/artist-geo?id=3` and renders the interactive map when coordinates arrive
 
 ### Data Transformations (Step by Step)
 
@@ -443,10 +443,11 @@ Here's the entire application data flow in one diagram:
 
 ## Key Takeaways
 
-1. **Two rendering strategies**: Server-side (Go templates for full pages) and client-side (JavaScript for search results)
-2. **No database**: All data comes from the external API on every request
+1. **Two rendering strategies**: Server-side (Go templates for full pages) and client-side (JavaScript for search results and map data)
+2. **Caching at multiple levels**: External API responses are cached 5 minutes in memory; geocode coordinates are cached in memory and on disk (`data/geocode_cache.json`)
 3. **Three data formats**: JSON (API ↔ server ↔ browser), Go structs (server processing), HTML (display)
 4. **Error handling at every step**: Network failure, bad input, missing data — all covered
+5. **Async geocoding**: Map coordinates are NOT fetched during the page render — the browser fetches them from `/api/artist-geo?id=X` after the page loads, keeping "View Details" fast
 
 ---
 

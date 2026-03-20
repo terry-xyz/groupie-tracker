@@ -361,10 +361,9 @@ func init() {
 3. **Graceful failure** — If a location can't be geocoded (Nominatim doesn't recognize it), we skip it instead of crashing. The map just shows fewer markers.
 
 ### Where
-- `services/geocode.go` — The full geocoding service
-- `handlers/artist.go:58-62` — Wiring geocoding into the artist handler
-- `handlers/artist.go:14-22` — `ArtistPageData.Locations` field
-- `templates/artist.html:119-170` — Map initialization script
+- `services/geocode.go` — The full geocoding service (rate limiter, coordinate cache, disk persistence)
+- `handlers/artist_geo.go` — The `/api/artist-geo?id=X` endpoint (geocoding moved here, out of the page handler)
+- `templates/artist.html` — Map initialization script (fetches from `/api/artist-geo` asynchronously)
 
 ---
 
@@ -388,28 +387,19 @@ The geolocalization spec requires that concert locations appear on an actual map
 ```
 
 The inline script at the bottom:
-1. Reads geocoded locations from `{{toJSON .Locations}}` (Go template → JSON → JavaScript)
-2. Creates a Leaflet map with OpenStreetMap tiles
-3. Places a marker at each concert location
-4. Adds popups showing city, country, and concert dates
+1. On `window.load`, calls `fetch('/api/artist-geo?id={{.Artist.ID}}')` — does NOT block page render
+2. When the response arrives, calls `initMap(locations)`
+3. `initMap` creates a Leaflet map with OpenStreetMap tiles
+4. Places a marker at each concert location with a popup showing city, country, and dates
 5. Draws a dashed purple polyline connecting all markers (the "tour route")
 6. Auto-zooms to fit all markers with `fitBounds`
 
-**The `toJSON` helper** is a `template.FuncMap` function that serializes Go structs to JSON safely within HTML templates:
-
-```go
-func toJSON(v interface{}) template.JS {
-    b, _ := json.Marshal(v)
-    return template.JS(b)  // template.JS tells Go "this is safe JavaScript, don't escape it"
-}
-```
+**Why async?** Geocoding via Nominatim takes 1+ second per location. An artist with 8 locations would stall the page for 8+ seconds if done synchronously. By fetching from `/api/artist-geo` after load, the page always renders instantly. The map just fills in a moment later (or instantly, if coordinates were cached from a previous visit).
 
 ### Where
-- `templates/artist.html:8-9` — Leaflet CDN imports
-- `templates/artist.html:77-83` — Map section HTML
-- `templates/artist.html:119-170` — Map initialization JavaScript
-- `handlers/artist.go:24-31` — `toJSON` function
-- `handlers/artist.go:74-78` — Template with FuncMap
+- `templates/artist.html` — Leaflet CDN imports, map section HTML, async fetch + map init
+- `handlers/artist_geo.go` — The JSON endpoint that runs geocoding
+- `services/geocode.go` — `GetGeoLocations()` with per-artist + disk caching
 
 ---
 
@@ -557,16 +547,17 @@ http.HandleFunc("/", handlers.HomeHandler)
 http.HandleFunc("/artist/", handlers.ArtistHandler)
 http.HandleFunc("/api/search", handlers.SearchHandler)
 
-// After: 5 routes
+// After: 6 routes
 http.HandleFunc("/", handlers.HomeHandler)
 http.HandleFunc("/artist/", handlers.ArtistHandler)
 http.HandleFunc("/api/search", handlers.SearchHandler)
-http.HandleFunc("/api/suggestions", handlers.SuggestionsHandler)  // NEW
-http.HandleFunc("/api/locations", handlers.LocationsHandler)      // NEW
+http.HandleFunc("/api/suggestions", handlers.SuggestionsHandler)  // autocomplete
+http.HandleFunc("/api/locations", handlers.LocationsHandler)      // location filter data
+http.HandleFunc("/api/artist-geo", handlers.ArtistGeoHandler)     // async geocoding
 ```
 
 ### Where
-- `main.go:16-17`
+- `main.go` — route registration + startup pre-warming goroutine
 
 ---
 
@@ -576,19 +567,53 @@ http.HandleFunc("/api/locations", handlers.LocationsHandler)      // NEW
 |--------|------|------|
 | Modified | `services/api.go` | Added caching + `FetchAllRelations` |
 | Modified | `handlers/search.go` | 3 new filters + expanded search |
-| Modified | `handlers/artist.go` | Geocoding integration + `toJSON` |
-| Modified | `main.go` | 2 new routes |
+| Modified | `handlers/artist.go` | Uses cached APIs; async map (no geocoding here) |
+| Modified | `main.go` | 3 new routes + geocode cache load + startup pre-warming |
 | Modified | `templates/home.html` | New filter UI |
-| Modified | `templates/artist.html` | Map section + Leaflet |
+| Modified | `templates/artist.html` | Async map via `/api/artist-geo` fetch |
 | Modified | `static/script.js` | Autocomplete + expanded filters |
 | Modified | `static/style.css` | New component styles |
 | Modified | `handlers/search_test.go` | 5 new test functions |
 | Modified | `services/api_test.go` | 1 new test function |
 | **Created** | `handlers/suggestions.go` | Autocomplete endpoint |
 | **Created** | `handlers/locations.go` | Location grouping endpoint |
-| **Created** | `services/geocode.go` | Geocoding service |
+| **Created** | `handlers/artist_geo.go` | Async geocoding JSON endpoint |
+| **Created** | `services/geocode.go` | Geocoding service with caching + disk persistence |
 | **Created** | `handlers/suggestions_test.go` | Suggestion tests |
 | **Created** | `services/geocode_test.go` | Geocoding tests |
+
+---
+
+## Change 13: Performance — Async Geocoding & Startup Pre-Warming
+
+### What Changed
+`handlers/artist.go`, `handlers/artist_geo.go` (new), `services/geocode.go`, `main.go`, `templates/artist.html`.
+
+### Why
+"View Details" was taking multiple seconds because `ArtistHandler` was synchronously geocoding each concert location before rendering — each uncached location waited 1.1s for the Nominatim rate limiter. An artist with 8 locations = ~9 seconds of blocking.
+
+### How It Works
+
+**Four layered improvements:**
+
+1. **Async geocoding** — Geocoding moved out of the page handler into `handlers/artist_geo.go`. The browser fetches `/api/artist-geo?id=X` after page load. The page is always instant; the map fills in when ready.
+
+2. **Per-artist cache** — `GetGeoLocations(artistID, ...)` in `services/geocode.go` stores the `[]GeoLocation` result per artist. Revisiting the same artist page: instant map.
+
+3. **Disk persistence** — `saveGeocodeCache("data/geocode_cache.json")` writes every new coordinate to disk after it's geocoded. `LoadGeocodeCache` reads it back at startup. After the first full pre-warm, subsequent server restarts skip all Nominatim calls for known locations.
+
+4. **Startup pre-warming** — A goroutine in `main.go` runs after the server starts, warming the artist/relation caches concurrently, then geocoding all artists in the background. If a user clicks "View Details" before their artist is pre-warmed, it geocodes on-demand (same as before) but caches the result immediately.
+
+**Also:**
+- Templates (`home.html`, `artist.html`) are now parsed once at startup using `sync.Once`, not on every request.
+- `ArtistHandler` now uses `GetArtists()` and `GetAllRelations()` (cached) instead of raw `FetchArtists()` / `FetchRelation()`.
+
+### Where
+- `handlers/artist_geo.go` — new async geocoding endpoint
+- `services/geocode.go` — `GetGeoLocations()`, `LoadGeocodeCache()`, `saveGeocodeCache()`
+- `main.go` — `LoadGeocodeCache` at startup + pre-warming goroutine
+- `handlers/home.go` and `handlers/artist.go` — `sync.Once` lazy template init, cached API calls
+- `templates/artist.html` — `fetch('/api/artist-geo?id=...')` after page load
 
 ---
 

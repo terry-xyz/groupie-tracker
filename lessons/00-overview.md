@@ -98,13 +98,18 @@ groupie-tracker/
 │   └── artist.go           ← THE BLUEPRINT: defines what an Artist looks like
 │
 ├── services/
-│   ├── api.go              ← THE DELIVERY TRUCK: fetches data from external API
-│   └── api_test.go         ← Tests for the delivery truck
+│   ├── api.go              ← THE DELIVERY TRUCK: fetches data from external API (with 5-min cache)
+│   ├── api_test.go         ← Tests for the delivery truck
+│   ├── geocode.go          ← THE CARTOGRAPHER: converts location names to coordinates
+│   └── geocode_test.go     ← Tests for geocoding utilities
 │
 ├── handlers/
 │   ├── home.go             ← THE RECEPTIONIST: serves the home page
 │   ├── artist.go           ← THE TOUR GUIDE: serves artist detail pages
+│   ├── artist_geo.go       ← THE MAP API: returns geocoded locations as JSON (async)
 │   ├── search.go           ← THE LIBRARIAN: handles search and filtering
+│   ├── locations.go        ← THE DIRECTORY: returns all locations grouped by country
+│   ├── suggestions.go      ← THE AUTOCOMPLETE: returns live search suggestions
 │   ├── error.go            ← THE APOLOGY NOTE: shows error pages
 │   └── search_test.go      ← Tests for search logic
 │
@@ -116,6 +121,9 @@ groupie-tracker/
 ├── static/
 │   ├── style.css           ← THE PAINT & WALLPAPER: colors, layout, animations
 │   └── script.js           ← THE INTERACTIVE BUTTONS: search, theme toggle, filters
+│
+├── data/
+│   └── geocode_cache.json  ← Persisted coordinate cache (auto-created on first geocode)
 │
 ├── docs/                   ← Project documentation
 ├── go.mod                  ← Go module definition (like a package.json)
@@ -145,6 +153,9 @@ groupie-tracker/
 2. **Home page request:** `GET /` → `handlers.HomeHandler`
 3. **Artist page request:** `GET /artist/{id}` → `handlers.ArtistHandler`
 4. **Search API request:** `GET /api/search?q=...` → `handlers.SearchHandler`
+5. **Autocomplete API:** `GET /api/suggestions?q=...` → `handlers.SuggestionsHandler`
+6. **Locations API:** `GET /api/locations` → `handlers.LocationsHandler`
+7. **Artist geocoding API:** `GET /api/artist-geo?id=X` → `handlers.ArtistGeoHandler`
 
 ### Exit Points (Where things END)
 

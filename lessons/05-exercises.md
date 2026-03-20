@@ -16,7 +16,7 @@ Use your file explorer or terminal: <code>ls handlers/*.go</code>
 </details>
 <details>
 <summary>Answer</summary>
-<code>home.go</code>, <code>artist.go</code>, <code>search.go</code>, <code>error.go</code>, <code>search_test.go</code>
+<code>home.go</code>, <code>artist.go</code>, <code>artist_geo.go</code>, <code>search.go</code>, <code>locations.go</code>, <code>suggestions.go</code>, <code>error.go</code>, <code>search_test.go</code>, <code>suggestions_test.go</code>
 </details>
 
 ### Exercise 0.2: Read a Struct

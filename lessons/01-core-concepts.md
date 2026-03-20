@@ -65,7 +65,7 @@ fmt.Println(myDog.Name)                   // Access a field: "Rex"
 ### Where (Files)
 - `models/artist.go:3-9` — The `Artist` struct
 - `models/artist.go:11-14` — The `Relation` struct
-- `handlers/artist.go:12-19` — The `ArtistPageData` struct
+- `handlers/artist.go:14-21` — The `ArtistPageData` struct (no `Locations` field — geocoding is async)
 
 ### How (Code Walkthrough)
 
@@ -134,8 +134,8 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
         return  // Stop here — don't continue
     }
 
-    // STEP 2: Get all artists from the external API
-    artists, err := services.FetchArtists()
+    // STEP 2: Get all artists (served from 5-min in-memory cache after first load)
+    artists, err := services.GetArtists()
     if err != nil {
         // Something went wrong → show error page
         log.Printf("Error fetching artists: %v", err)
@@ -143,16 +143,8 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // STEP 3: Load the HTML template
-    tmpl, err := template.ParseFiles("templates/home.html")
-    if err != nil {
-        log.Printf("Error parsing template: %v", err)
-        ErrorHandler(w, http.StatusInternalServerError)
-        return
-    }
-
-    // STEP 4: Fill the template with data and send it back
-    tmpl.Execute(w, artists)
+    // STEP 3: Render with the pre-parsed template (parsed once at startup via sync.Once)
+    getHomeTmpl().Execute(w, artists)
 }
 ```
 

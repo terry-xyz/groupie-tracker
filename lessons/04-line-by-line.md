@@ -68,11 +68,21 @@ func main() {  // main() is THE function Go runs when the program starts
 
     // STEP 2: Register route handlers
     // "When someone visits this URL, run this function"
-    http.HandleFunc("/", handlers.HomeHandler)              // Home page
-    http.HandleFunc("/artist/", handlers.ArtistHandler)     // Artist detail pages
-    http.HandleFunc("/api/search", handlers.SearchHandler)  // Search API endpoint
+    http.HandleFunc("/", handlers.HomeHandler)                   // Home page
+    http.HandleFunc("/artist/", handlers.ArtistHandler)          // Artist detail pages
+    http.HandleFunc("/api/search", handlers.SearchHandler)       // Search API endpoint
+    http.HandleFunc("/api/suggestions", handlers.SuggestionsHandler) // Autocomplete
+    http.HandleFunc("/api/locations", handlers.LocationsHandler) // Location filter data
+    http.HandleFunc("/api/artist-geo", handlers.ArtistGeoHandler) // Async geocoding
 
-    // STEP 3: Start the server
+    // STEP 3: Pre-warm caches in background (server starts immediately)
+    go func() {
+        services.GetArtists()       // Warm artist cache
+        services.GetAllRelations()  // Warm relations cache
+        // Then geocode all artists in background (1 per second, respects Nominatim rate limit)
+    }()
+
+    // STEP 4: Start the server
     log.Println("Server starting on http://localhost:8080")
     if err := http.ListenAndServe(":8080", nil); err != nil {
         log.Fatal(err)  // If server can't start (port busy?), crash with error message
@@ -253,26 +263,18 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // STEP 1: Get all artists from external API
-    artists, err := services.FetchArtists()
+    // STEP 1: Get all artists from the cache (or fetch fresh if cache is stale/empty)
+    // GetArtists() wraps FetchArtists() with a 5-minute TTL in-memory cache
+    artists, err := services.GetArtists()
     if err != nil {
         log.Printf("Error fetching artists: %v", err)
         ErrorHandler(w, http.StatusInternalServerError, "Unable to load artists. Please try again later.")
         return
     }
 
-    // STEP 2: Load and parse the HTML template
-    tmpl, err := template.ParseFiles("templates/home.html")
-    if err != nil {
-        log.Printf("Error parsing template: %v", err)
-        ErrorHandler(w, http.StatusInternalServerError)
-        return
-    }
-
-    // STEP 3: Execute template — fills in {{.Name}}, {{.Image}}, etc.
-    // "w" is the response writer — template output goes directly to the browser
-    // "artists" is the data — the template's "." (dot) becomes this slice
-    tmpl.Execute(w, artists)
+    // STEP 2: Execute the pre-parsed template (parsed once at startup via sync.Once,
+    // not on every request — avoids disk reads on each page load)
+    getHomeTmpl().Execute(w, artists)
 }
 ```
 
@@ -288,7 +290,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 ```go
 // INPUT:  HTTP request for "/artist/{id}"
-// OUTPUT: Rendered artist profile page, or error page
+// OUTPUT: Rendered artist profile page instantly (map loads async afterward)
 
 func ArtistHandler(w http.ResponseWriter, r *http.Request) {
     // STEP 1: Extract the artist ID from the URL
@@ -303,8 +305,8 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
         return  // "banana" is not a number → 400 Bad Request
     }
 
-    // STEP 3: Fetch ALL artists (there's no "get one artist" endpoint)
-    artists, err := services.FetchArtists()
+    // STEP 3: Get ALL artists from cache (no network call if cache is warm)
+    artists, err := services.GetArtists()
     if err != nil {
         log.Printf("Error fetching artists: %v", err)
         ErrorHandler(w, http.StatusInternalServerError, "Unable to load artist data")
@@ -312,50 +314,57 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // STEP 4: Search through artists to find the one with our ID
-    var artist *models.Artist  // Pointer — nil until we find a match
-    for i, a := range artists {
+    var foundArtist *models.Artist
+    for _, a := range artists {
         if a.ID == id {
-            artist = &artists[i]  // Found it! Point to it
-            break                  // Stop searching
+            foundArtist = &a
+            break
         }
     }
 
     // STEP 5: If no artist matched, it doesn't exist
-    if artist == nil {
+    if foundArtist == nil {
         ErrorHandler(w, http.StatusNotFound, "Artist not found")
         return
     }
 
-    // STEP 6: Fetch concert relation data
-    relation, err := services.FetchRelation(id)
+    // STEP 6: Get ALL relations from cache, then find this artist's relation
+    // GetAllRelations() fetches once and caches for 5 min — no per-artist API call
+    var relation *models.Relation
+    relations, err := services.GetAllRelations()
     if err != nil {
-        log.Printf("Error fetching relation: %v", err)
-        ErrorHandler(w, http.StatusInternalServerError, "Unable to load concert data")
-        return
+        log.Printf("Error fetching relations for artist %d: %v", id, err)
+    } else {
+        for i := range relations {
+            if relations[i].ID == id {
+                relation = &relations[i]
+                break
+            }
+        }
     }
 
     // STEP 7: Calculate statistics for the profile page
-    // This builds the "stats bar" — concerts, countries, years active, band type
+    // NOTE: Geocoding (map coordinates) is NOT done here — the browser fetches
+    // /api/artist-geo?id=X after the page loads, keeping this response instant.
     currentYear := time.Now().Year()
     data := ArtistPageData{
-        Artist:         *artist,                                 // The artist's basic info
-        Relation:       relation,                                // Concert data
-        TotalConcerts:  calculateTotalConcerts(relation),        // Sum of all concerts
-        TotalCountries: calculateTotalCountries(relation),       // Unique countries
-        YearsActive:    currentYear - artist.CreationDate,       // 2026 - 1970 = 56
-        BandType:       getBandType(len(artist.Members)),        // "Quartet" for 4 members
+        Artist:         *foundArtist,
+        Relation:       relation,
+        TotalConcerts:  calculateTotalConcerts(relation),
+        TotalCountries: calculateTotalCountries(relation),
+        YearsActive:    currentYear - foundArtist.CreationDate,  // 2026 - 1970 = 56
+        BandType:       getBandType(len(foundArtist.Members)),   // "Quartet" for 4 members
     }
 
-    // STEP 8: Parse and render the template
-    tmpl, err := template.ParseFiles("templates/artist.html")
-    if err != nil {
-        log.Printf("Error parsing template: %v", err)
-        ErrorHandler(w, http.StatusInternalServerError)
-        return
-    }
-
-    tmpl.Execute(w, data)
+    // STEP 8: Render the pre-parsed template (parsed once at startup via sync.Once)
+    getArtistTmpl().Execute(w, data)
 }
+
+// ArtistGeoHandler (handlers/artist_geo.go) handles /api/artist-geo?id=X.
+// Called asynchronously by the browser AFTER the artist page renders.
+// It geocodes the artist's concert locations and returns them as JSON.
+// Results are cached per-artist in memory and on disk (data/geocode_cache.json)
+// so subsequent visits are instant.
 ```
 
 ### Helper Functions
@@ -742,16 +751,20 @@ document.getElementById('search')?.addEventListener('keyup', (e) => {
 
 ## Summary: The Code Tour
 
-| File | Lines | Role | Complexity |
-|------|-------|------|------------|
-| `main.go` | ~18 | Wire everything together | Simple |
-| `models/artist.go` | ~16 | Data definitions | Simple |
-| `services/api.go` | ~58 | Fetch from external API | Medium |
-| `handlers/home.go` | ~31 | Render home page | Simple |
-| `handlers/artist.go` | ~117 | Render artist profile | Complex |
-| `handlers/search.go` | ~100 | Search and filter API | Medium |
-| `handlers/error.go` | ~27 | Render error pages | Simple |
-| `static/script.js` | ~124 | Browser interactivity | Medium |
+| File | Role | Complexity |
+|------|------|------------|
+| `main.go` | Wire everything together, pre-warm caches | Simple |
+| `models/artist.go` | Data definitions | Simple |
+| `services/api.go` | Fetch + cache from external API (5-min TTL) | Medium |
+| `services/geocode.go` | Geocoding with rate limiter, per-artist + disk cache | Medium |
+| `handlers/home.go` | Render home page (cached artists, lazy template) | Simple |
+| `handlers/artist.go` | Render artist profile (cached data, async map) | Medium |
+| `handlers/artist_geo.go` | Return geocoded locations as JSON (async endpoint) | Simple |
+| `handlers/search.go` | Search and filter API | Medium |
+| `handlers/suggestions.go` | Autocomplete suggestions API | Medium |
+| `handlers/locations.go` | Location grouping for filter UI | Simple |
+| `handlers/error.go` | Render error pages | Simple |
+| `static/script.js` | Browser interactivity | Medium |
 
 ---
 
