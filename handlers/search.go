@@ -66,7 +66,8 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Filter first, then sort—avoids sorting entries that will be discarded
+	// Filter first, then sort—avoids sorting entries that will be discarded.
+	// make([]Artist, 0) instead of var so JSON encodes as [] not null when no artists match.
 	results := make([]models.Artist, 0)
 	for _, artist := range artists {
 		rel := relationMap[artist.ID] // may be nil if relations failed
@@ -125,15 +126,16 @@ func matchesSearch(artist models.Artist, relation *models.Relation, query string
 		return true
 	}
 
-	// Search by concert locations — match both raw key and formatted name
-	// so "playa del carmen, mexico" and "playa_del_carmen-mexico" both work
+	// Search by concert locations — match both the raw API key ("playa_del_carmen-mexico") and
+	// the formatted display name ("playa del carmen, mexico") so suggestions clicked from the
+	// dropdown (which show the pretty name) still find the right artists.
 	if relation != nil {
 		for location := range relation.DatesLocations {
 			if strings.Contains(strings.ToLower(location), query) {
 				return true
 			}
 			city, country := services.FormatLocationName(location)
-			formatted := strings.ToLower(city)
+			formatted := strings.ToLower(city) // build "city, country" in lowercase for comparison
 			if country != "" {
 				formatted += ", " + strings.ToLower(country)
 			}
@@ -147,7 +149,8 @@ func matchesSearch(artist models.Artist, relation *models.Relation, query string
 }
 
 // matchesYearFilter returns true if the artist's creation year falls within the given range.
-// Empty strings mean no bound.
+// Empty strings mean no bound. Non-numeric values are silently ignored so a bad query param
+// doesn't wipe out results by accidentally converting to 0.
 func matchesYearFilter(artist models.Artist, minYear, maxYear string) bool {
 	if minYear != "" {
 		if min, err := strconv.Atoi(minYear); err == nil && artist.CreationDate < min {

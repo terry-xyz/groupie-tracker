@@ -93,12 +93,13 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 			addSuggestion(artist.FirstAlbum, "first album date")
 		}
 
-		// Locations from relations
+		// Locations from relations — match on the raw key but suggest the pretty display name
+		// so the user sees "Playa Del Carmen, Mexico" instead of "playa_del_carmen-mexico"
 		if locs, ok := relationMap[artist.ID]; ok {
 			for location := range locs {
 				if strings.Contains(strings.ToLower(location), query) {
 					city, country := services.FormatLocationName(location)
-					formatted := city
+					formatted := city // formatted is "City, Country" used as the suggestion text
 					if country != "" {
 						formatted = city + ", " + country
 					}

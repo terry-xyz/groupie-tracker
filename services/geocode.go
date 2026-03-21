@@ -123,6 +123,8 @@ func geocodeAddress(query string) (lat, lng float64, err error) {
 		return 0, 0, fmt.Errorf("no geocode results for %q", query)
 	}
 
+	// ParseFloat with bitSize=64 gives full double precision; Nominatim returns lat/lng as
+	// JSON strings (not numbers), so we can't rely on the JSON decoder to do this conversion.
 	latF, err := strconv.ParseFloat(results[0].Lat, 64)
 	if err != nil {
 		return 0, 0, fmt.Errorf("invalid lat %q from Nominatim: %v", results[0].Lat, err)
@@ -187,8 +189,10 @@ func LoadGeocodeCache(path string) error {
 
 // saveGeocodeCache writes the current in-memory geocode cache to disk.
 func saveGeocodeCache(path string) {
+	// Copy the cache under RLock into a local snapshot so we can release the lock before
+	// marshaling — json.Marshal can be slow and we don't want to block readers during it.
 	geocodeCacheMu.RLock()
-	snapshot := make(map[string][2]float64, len(geocodeCache))
+	snapshot := make(map[string][2]float64, len(geocodeCache)) // [0]=lat, [1]=lng
 	for k, v := range geocodeCache {
 		snapshot[k] = v
 	}

@@ -9,15 +9,18 @@ import (
 
 var (
 	errorTmpl     *template.Template
-	errorTmplOnce sync.Once
+	errorTmplOnce sync.Once // ensures the template is parsed exactly once across all goroutines
 )
 
+// getErrorTmpl parses templates/error.html on the first call and caches it; returns nil if
+// parsing failed so ErrorHandler can fall back to plain text instead of panicking.
 func getErrorTmpl() *template.Template {
 	errorTmplOnce.Do(func() {
 		var err error
 		errorTmpl, err = template.ParseFiles("templates/error.html")
 		if err != nil {
 			log.Printf("Error parsing error template: %v", err)
+			// errorTmpl stays nil — ErrorHandler checks for nil before calling Execute
 		}
 	})
 	return errorTmpl

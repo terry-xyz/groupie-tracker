@@ -22,17 +22,20 @@ const memberRangeLabel = document.getElementById('memberRangeLabel');
     document.body.className = savedTheme || (prefersDark ? 'dark-theme' : 'light-theme');
 })();
 
+// initTheme syncs the theme toggle icon with the theme already applied by the IIFE above.
 function initTheme() {
     const currentTheme = document.body.className;
     updateThemeIcon(currentTheme);
 }
 
+// updateThemeIcon sets the toggle button glyph to ☀️ in dark mode and 🌙 in light mode.
 function updateThemeIcon(theme) {
     if (themeToggle) {
         themeToggle.textContent = theme === 'dark-theme' ? '☀️' : '🌙';
     }
 }
 
+// toggleTheme flips between dark-theme and light-theme, persisting the choice to localStorage.
 function toggleTheme() {
     const currentTheme = document.body.className;
     const newTheme = currentTheme === 'dark-theme' ? 'light-theme' : 'dark-theme';
@@ -48,6 +51,8 @@ if (themeToggle) {
 initTheme();
 
 // --- Debounce utility ---
+// debounce wraps fn so it only fires after delay ms of silence — prevents flooding the
+// search API on every keystroke by resetting the timer each time the user types.
 function debounce(fn, delay) {
     let timer;
     return function() {
@@ -61,6 +66,7 @@ function debounce(fn, delay) {
 }
 
 // --- Autocomplete suggestions ---
+// fetchSuggestions requests categorised suggestions from /api/suggestions and renders the dropdown.
 async function fetchSuggestions(query) {
     if (!query || query.length < 1) {
         hideSuggestions();
@@ -72,10 +78,11 @@ async function fetchSuggestions(query) {
         const suggestions = await response.json();
         displaySuggestions(suggestions);
     } catch (e) {
-        // Silently fail on autocomplete errors
+        // Silently fail — autocomplete is non-critical; the user can still type and search
     }
 }
 
+// displaySuggestions renders the dropdown list from the suggestions array returned by the API.
 function displaySuggestions(suggestions) {
     if (!suggestionsDropdown) return;
     if (!suggestions || suggestions.length === 0) {
@@ -83,6 +90,7 @@ function displaySuggestions(suggestions) {
         return;
     }
 
+    // data-text stores the raw value so clicking a suggestion fills the search box correctly
     suggestionsDropdown.innerHTML = suggestions.map(function(s) {
         return '<div class="suggestion-item" data-text="' + escapeAttr(s.text) + '">' +
             '<span class="suggestion-text">' + escapeHTML(s.text) + '</span>' +
@@ -91,7 +99,7 @@ function displaySuggestions(suggestions) {
     }).join('');
     suggestionsDropdown.style.display = 'block';
 
-    // Attach click handlers
+    // Attach click handlers after innerHTML is set so the elements exist in the DOM
     suggestionsDropdown.querySelectorAll('.suggestion-item').forEach(function(item) {
         item.addEventListener('click', function() {
             searchInput.value = this.getAttribute('data-text');
@@ -101,18 +109,22 @@ function displaySuggestions(suggestions) {
     });
 }
 
+// hideSuggestions collapses the dropdown without clearing its contents.
 function hideSuggestions() {
     if (suggestionsDropdown) {
         suggestionsDropdown.style.display = 'none';
     }
 }
 
+// escapeHTML prevents XSS by assigning str as textContent (browser encodes it), then reading
+// it back as innerHTML — turns <script> into &lt;script&gt; without a manual replace list.
 function escapeHTML(str) {
     var div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
+// escapeAttr escapes quotes so artist names with apostrophes don't break HTML attribute values.
 function escapeAttr(str) {
     return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -144,6 +156,8 @@ document.addEventListener('click', function(e) {
 });
 
 // --- Location checkbox loading ---
+// loadLocations fetches all unique locations from /api/locations, renders them as grouped
+// checkboxes, and restores any previously checked boxes from savedLocations (may be null).
 async function loadLocations(savedLocations) {
     if (!locationCheckboxes) return;
     try {
@@ -214,12 +228,14 @@ if (resetBtn) {
 }
 
 // --- Member slider logic ---
+// updateMemberLabel refreshes the "Members: X - Y" label above the sliders; shows "8+" when
+// max is 8 because the backend treats 8 as "8 or more", not exactly 8.
 function updateMemberLabel() {
     if (!memberRangeLabel || !minMembersSlider || !maxMembersSlider) return;
     var min = parseInt(minMembersSlider.value);
     var max = parseInt(maxMembersSlider.value);
     var minLabel = min.toString();
-    var maxLabel = max === 8 ? '8+' : max.toString();
+    var maxLabel = max === 8 ? '8+' : max.toString(); // 8 is the slider ceiling and means "8 or more"
     memberRangeLabel.textContent = minLabel + ' - ' + maxLabel;
 }
 
@@ -261,18 +277,18 @@ var debouncedApply = debounce(applyFilters, 400);
     if (!input) return;
     input.addEventListener('input', debouncedApply);
 
-    // Block non-digit keys (prevents -, +, ., e from being typed)
+    // Block non-digit keys (prevents -, +, ., e from being typed into number inputs)
     input.addEventListener('keydown', function(e) {
         var nav = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
                    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
-        if (nav.indexOf(e.key) !== -1) return;
-        if ((e.ctrlKey || e.metaKey) && 'acvx'.indexOf(e.key.toLowerCase()) !== -1) return;
-        if (!/^\d$/.test(e.key)) e.preventDefault();
+        if (nav.indexOf(e.key) !== -1) return; // always allow navigation/editing keys
+        if ((e.ctrlKey || e.metaKey) && 'acvx'.indexOf(e.key.toLowerCase()) !== -1) return; // allow Ctrl+A/C/V/X
+        if (!/^\d$/.test(e.key)) e.preventDefault(); // /^\d$/ matches exactly one digit 0-9; anything else is blocked
     });
 
-    // Strip non-digits on paste or autofill
+    // Strip non-digits on paste or autofill — keydown alone can't catch clipboard content
     input.addEventListener('input', function() {
-        var cleaned = this.value.replace(/[^\d]/g, '');
+        var cleaned = this.value.replace(/[^\d]/g, ''); // [^\d] matches any non-digit character
         if (this.value !== cleaned) this.value = cleaned;
     });
 });
@@ -289,6 +305,8 @@ function showError(message) {
     }
 }
 
+// applyFilters reads all filter inputs, saves them to sessionStorage, then fetches /api/search
+// and re-renders the artist grid without a page reload.
 async function applyFilters() {
     var query = searchInput ? searchInput.value : '';
     var minYear = minYearInput ? minYearInput.value : '';
@@ -297,7 +315,8 @@ async function applyFilters() {
     var maxAlbumYear = maxAlbumYearInput ? maxAlbumYearInput.value : '';
     var sort = sortBySelect ? sortBySelect.value : '';
 
-    // Collect member range from sliders
+    // Expand slider range into individual member counts (e.g., min=2 max=4 → ["2","3","4"])
+    // because the API accepts a comma-separated list of exact counts, not a range
     var members = [];
     if (minMembersSlider && maxMembersSlider) {
         var min = parseInt(minMembersSlider.value);
@@ -351,7 +370,7 @@ async function applyFilters() {
 
         displayArtists(artists);
 
-        // Update result count
+        // Update result count; ternary handles "1 artist" vs "N artists" pluralisation
         if (resultCount) {
             resultCount.textContent = 'Showing ' + artists.length + ' artist' + (artists.length !== 1 ? 's' : '');
         }
@@ -361,6 +380,7 @@ async function applyFilters() {
     }
 }
 
+// displayArtists replaces the artist grid contents with cards built from the API response array.
 function displayArtists(artists) {
     if (!artistGrid) return;
 
@@ -381,6 +401,8 @@ function displayArtists(artists) {
     }).join('');
 }
 
+// resetFilters clears every filter input, removes the saved sessionStorage state so it isn't
+// restored on the next page visit, then re-fetches all artists without a page reload.
 function resetFilters() {
     if (searchInput) searchInput.value = '';
     if (minYearInput) minYearInput.value = '';
@@ -414,10 +436,11 @@ function resetFilters() {
     applyFilters();
 }
 
-// Restore saved filter state when returning from an artist page
+// Restore saved filter state when returning from an artist page.
+// Only runs on the home page where locationCheckboxes exists.
 if (locationCheckboxes) {
     var _saved = null;
-    try { _saved = JSON.parse(sessionStorage.getItem('gt_filters')); } catch(e) {}
+    try { _saved = JSON.parse(sessionStorage.getItem('gt_filters')); } catch(e) {} // corrupt storage → treat as no saved state
     if (_saved) {
         if (searchInput) searchInput.value = _saved.q || '';
         if (minYearInput) minYearInput.value = _saved.minYear || '';
@@ -425,10 +448,12 @@ if (locationCheckboxes) {
         if (minAlbumYearInput) minAlbumYearInput.value = _saved.minAlbumYear || '';
         if (maxAlbumYearInput) maxAlbumYearInput.value = _saved.maxAlbumYear || '';
         if (sortBySelect) sortBySelect.value = _saved.sort || '';
-        if (minMembersSlider) minMembersSlider.value = _saved.minMembers || '1';
-        if (maxMembersSlider) maxMembersSlider.value = _saved.maxMembers || '8';
+        if (minMembersSlider) minMembersSlider.value = _saved.minMembers || '1'; // fall back to slider min if missing
+        if (maxMembersSlider) maxMembersSlider.value = _saved.maxMembers || '8'; // fall back to slider max if missing
         updateMemberLabel();
-        applyFilters();
+        applyFilters(); // re-render grid with restored non-location filters immediately
     }
+    // loadLocations is async; it restores saved location checkboxes after the DOM is built
+    // and calls applyFilters() again if any locations were checked, so the grid updates once more
     loadLocations(_saved ? _saved.locations : null);
 }
