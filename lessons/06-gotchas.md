@@ -189,37 +189,54 @@ if err := tmpl.Execute(w, data); err != nil {
 
 ---
 
-## Gotcha 7: No Caching — Every Request Hits the API
+## Gotcha 7: Caching Without Thread Safety
 
-### The Bug (More of a Design Choice)
-Every page load calls `FetchArtists()`, which makes a fresh HTTP request to the external API. If 100 users load the home page, that's 100 API calls for the same data. This works fine for a small project but would be a performance problem at scale.
+### The Bug (Fixed in This Codebase)
+Adding an in-memory cache is a great idea — but a naive implementation in a concurrent web server is dangerous. Two goroutines (concurrent requests) could both try to write the cache at the same time, corrupting data.
 
 ```go
-// Current: fresh API call every time
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
-    artists, err := services.FetchArtists()  // Hits external API
-    // ...
-}
-
-// With caching (not implemented, but would look like):
+// WRONG: No lock — two requests could overwrite each other simultaneously
 var cachedArtists []models.Artist
 var cacheTime time.Time
 
-func FetchArtistsCached() ([]models.Artist, error) {
-    if time.Since(cacheTime) < 5*time.Minute && cachedArtists != nil {
-        return cachedArtists, nil  // Return cached data
+func GetArtists() ([]models.Artist, error) {
+    if cachedArtists != nil && time.Since(cacheTime) < 5*time.Minute {
+        return cachedArtists, nil  // Could read a half-written value!
     }
-    // ... fetch fresh data and update cache
+    artists, _ := FetchArtists()
+    cachedArtists = artists  // RACE CONDITION if two requests hit this simultaneously
+    cacheTime = time.Now()
+    return artists, nil
+}
+
+// RIGHT: Use sync.Mutex to serialize cache access
+var (
+    cacheMu       sync.Mutex
+    cachedArtists []models.Artist
+    cacheTime     time.Time
+)
+
+func GetArtists() ([]models.Artist, error) {
+    cacheMu.Lock()
+    defer cacheMu.Unlock()
+    if cachedArtists != nil && time.Since(cacheTime) < 5*time.Minute {
+        return cachedArtists, nil  // Safe — only one goroutine here at a time
+    }
+    artists, err := FetchArtists()
+    if err != nil { return nil, err }
+    cachedArtists = artists
+    cacheTime = time.Now()
+    return artists, nil
 }
 ```
 
-### How to Spot This Issue
-- Pages load slowly (waiting for external API on every request)
-- External API rate-limits your app
-- App breaks completely when the external API is down (no fallback)
+### How to Spot This Bug
+- Intermittent crashes or corrupted data under concurrent load (hard to reproduce in development)
+- Go's race detector catches it: `go run -race main.go`
+- Works fine in testing (single-threaded), fails in production (many concurrent users)
 
 ### Code Location
-`services/api.go` — both `FetchArtists` and `FetchRelation` make fresh calls every time
+`services/api.go` — `GetArtists()` and `GetAllRelations()` use `sync.Mutex` for safe concurrent caching
 
 ---
 
@@ -254,67 +271,98 @@ if err != nil {
 
 ## Gotcha 9: Template Re-parsing on Every Request
 
-### The Bug (Performance)
-Every handler call parses the HTML template from disk:
+### The Bug (Performance — Fixed in This Codebase)
+A naive implementation parses the HTML template from disk on every request:
 
 ```go
-// Current: parse template on EVERY request
+// WRONG: parse template on EVERY request — reads the file each time
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
-    // ...
-    tmpl, err := template.ParseFiles("templates/home.html")  // Reads file from disk
+    tmpl, err := template.ParseFiles("templates/home.html")
     // ...
 }
 ```
 
-This reads and parses the file from disk on every single request. For a small project this is fine, and it has the benefit of reflecting template changes without restarting the server. But at scale, you'd want to parse templates once at startup:
+This reads and parses the file from disk on every single request. At scale this becomes a bottleneck.
 
 ```go
-// Better for production: parse once, reuse many times
-var homeTemplate = template.Must(template.ParseFiles("templates/home.html"))
+// RIGHT: parse once with sync.Once, reuse on every request
+var (
+    homeTmpl     *template.Template
+    homeTmplOnce sync.Once
+)
 
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
-    // ...
-    homeTemplate.Execute(w, artists)  // No file read — template already parsed
+func getHomeTmpl() *template.Template {
+    homeTmplOnce.Do(func() {
+        var err error
+        homeTmpl, err = template.ParseFiles("templates/home.html")
+        if err != nil {
+            log.Printf("Error parsing home template: %v", err)
+        }
+    })
+    return homeTmpl
 }
 ```
+
+`sync.Once` guarantees the template is parsed **exactly once**, no matter how many concurrent requests trigger it first. The `error.go` handler uses the same pattern — if parsing fails, `errorTmpl` stays `nil` and `ErrorHandler` falls back to plain text instead of panicking.
 
 ### How to Spot This Issue
 - Slow page loads under high traffic
 - High disk I/O on the server
 
+### Code Location
+`handlers/home.go`, `handlers/artist.go`, `handlers/error.go` — all use `sync.Once` for template caching
+
 ---
 
 ## Gotcha 10: XSS Risk in JavaScript Template Literals
 
-### The Bug
-In `script.js`, `displayArtists()` inserts data directly into HTML using template literals:
+### The Bug (Fixed in This Codebase)
+Inserting data directly into `innerHTML` using template literals allows malicious HTML to execute as code — called **Cross-Site Scripting (XSS)**:
 
 ```javascript
-// Current code
+// WRONG: data inserted directly into innerHTML
 card.innerHTML = `
     <img src="${artist.image}" alt="${artist.name}">
     <h2>${artist.name}</h2>
 `;
+// If artist.name is '<script>alert("hacked")</script>' — it RUNS
 ```
 
-If an artist's name contained HTML like `<script>alert('hacked')</script>`, it would execute as code. This is called **Cross-Site Scripting (XSS)**.
-
-**In this project, the risk is LOW** because the data comes from a trusted external API (not user input). But if you ever let users submit data that gets displayed this way, you'd need to sanitize it:
+The fix is to escape all dynamic values before inserting them:
 
 ```javascript
-// Safer approach: use textContent instead of innerHTML for text
-const h2 = document.createElement('h2');
-h2.textContent = artist.name;  // Treated as text, not HTML
-card.appendChild(h2);
+// RIGHT: escape all dynamic values before inserting into HTML
+function escapeHTML(str) {
+    var div = document.createElement('div'); // Leverage the browser's own HTML parser
+    div.textContent = str;                   // textContent sets text without interpreting HTML
+    return div.innerHTML;                    // innerHTML then returns the safely escaped version
+}
+
+function escapeAttr(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Usage:
+card.innerHTML = `
+    <img src="${escapeAttr(artist.image)}" alt="${escapeAttr(artist.name)}">
+    <h2>${escapeHTML(artist.name)}</h2>
+`;
 ```
+
+`escapeHTML` is used for text nodes inside tags; `escapeAttr` is used for values inside HTML attributes — they require slightly different escaping rules.
 
 ### How to Spot This Bug
 - Strange characters appearing in artist names
 - Browser developer console showing script errors
-- Any user-submitted data appearing in `innerHTML`
+- Any user-submitted data appearing in `innerHTML` without escaping
 
 ### Code Location
-`static/script.js` — `displayArtists()` function
+`static/script.js` — `escapeHTML()`, `escapeAttr()`, and their use throughout `displayArtists()` and `displaySuggestions()`
 
 ---
 

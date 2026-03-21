@@ -617,6 +617,155 @@ http.HandleFunc("/api/artist-geo", handlers.ArtistGeoHandler)     // async geoco
 
 ---
 
+---
+
+## Session 2: Polish & UX Improvements
+
+These changes were made after the core spec was complete. They improve reliability, usability, and visual consistency.
+
+### Change A: Zero-Result Filter Shows "No Artists Found" (not a crash)
+
+**Problem:** When all filters combined produced zero results, the JS received `null` (not `[]`) and crashed with a TypeError. The UI showed a generic "connection error" instead of an empty state.
+
+**Root cause:** `var results []models.Artist` declares a nil slice, which `json.Marshal` encodes as `null`. JavaScript's `data.length` on `null` throws.
+
+```go
+// Before: nil encodes as JSON null → JS crashes on .length
+var results []models.Artist
+
+// After: empty slice encodes as JSON [] → JS sees length 0, shows "No artists found"
+results := make([]models.Artist, 0)
+```
+
+**Where:** `handlers/search.go`
+
+---
+
+### Change B: Formatted Location Names in Autocomplete
+
+**Problem:** Autocomplete suggestions were showing raw API keys like `playa_del_carmen-mexico` instead of human-readable `Playa Del Carmen, Mexico`.
+
+**Fix:** The suggestions handler now calls `services.FormatLocationName()` to convert raw keys to city/country pairs before adding them as suggestions. The search handler also matches both forms so clicking a pretty suggestion still finds the right artists.
+
+**Where:** `handlers/suggestions.go`, `handlers/search.go` (`matchesSearch`)
+
+---
+
+### Change C: Proper JSON Error Responses
+
+**Problem:** `handlers/artist_geo.go` was using `http.Error()` for error responses. `http.Error()` sets `Content-Type: text/plain`, not `application/json`. The JS client trying to parse the response as JSON would fail.
+
+```go
+// Before: sets Content-Type: text/plain, breaks JSON.parse()
+http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
+
+// After: sets correct Content-Type header first, then writes body
+w.Header().Set("Content-Type", "application/json")
+w.WriteHeader(http.StatusBadRequest)
+w.Write([]byte(`{"error":"invalid id"}`))
+```
+
+**Where:** `handlers/artist_geo.go`
+
+---
+
+### Change D: sync.Once Template Caching in ErrorHandler
+
+**Problem:** The original `ErrorHandler` called `template.ParseFiles()` on every error response — reading the file from disk each time. More critically, `log.Fatalf` in the parse step would kill the entire server process if the template path was wrong during tests.
+
+**Fix:** Switched to `sync.Once` lazy initialization (matching the pattern used in `home.go` and `artist.go`). If parsing fails, `errorTmpl` stays `nil` and `ErrorHandler` falls back to plain text. `log.Printf` (not `log.Fatalf`) lets tests continue running.
+
+**Where:** `handlers/error.go`
+
+---
+
+### Change E: Bidirectional Slider Clamping
+
+**Problem:** The member count range sliders clamped in only one direction. Dragging the max slider below the min correctly pushed min down, but dragging min above max did nothing — the sliders got stuck.
+
+**Fix:** Added symmetric clamping: each slider's `input` listener checks the other and pushes it if needed.
+
+```javascript
+minMembersSlider.addEventListener('input', function() {
+    if (parseInt(minMembersSlider.value) > parseInt(maxMembersSlider.value)) {
+        maxMembersSlider.value = minMembersSlider.value; // Push max up to match min
+    }
+    updateMemberLabel();
+});
+```
+
+**Where:** `static/script.js`
+
+---
+
+### Change F: Live Search-as-You-Type + Digits-Only Year Inputs
+
+**Problem:** The search bar required pressing Enter to trigger a search. Year inputs accepted non-numeric characters (`+`, `-`, `.`).
+
+**Fix:** The search input now calls `applyFilters()` via a 300ms debounce on every keystroke. Year inputs block non-digit `keydown` events and strip any non-digit characters on `input`.
+
+```javascript
+// Block non-digit keys at entry point
+yearInput.addEventListener('keydown', function(e) {
+    if (!/^\d$/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+    }
+});
+// Strip any that slip through (paste, autofill)
+yearInput.addEventListener('input', function() {
+    this.value = this.value.replace(/[^\d]/g, '');
+});
+```
+
+**Where:** `static/script.js`
+
+---
+
+### Change G: Filter State Persistence via sessionStorage
+
+**Problem:** Navigating to an artist page and clicking "Back" reset all filters. Users had to re-apply their filters on every visit.
+
+**Fix:** `applyFilters()` serializes the current filter state to `sessionStorage` under the key `'gt_filters'`. On page load, the saved state is restored before calling `applyFilters()` and `loadLocations()`. Pressing "Reset Filters" clears the key.
+
+```javascript
+// Save on every filter application
+sessionStorage.setItem('gt_filters', JSON.stringify({ q, minYear, ..., locations }));
+
+// Restore on page load
+var _saved = null;
+try { _saved = JSON.parse(sessionStorage.getItem('gt_filters')); } catch(e) {}
+if (_saved) { /* restore all inputs */ applyFilters(); }
+```
+
+`sessionStorage` (not `localStorage`) is intentional: state clears when the tab closes, so the next fresh visit starts clean.
+
+**Where:** `static/script.js`
+
+---
+
+### Change H: Apply Filters Removed → Reset Filters Button
+
+**Problem:** "Apply Filters" was redundant since all filters already update live. "Reset" didn't stand out visually. Clicking "Reset" caused a full page reload (`location.reload()`), which was jarring.
+
+**Fix:**
+- Removed the `<button id="applyFilters">` from the template entirely
+- Renamed the reset button to "Reset Filters" and gave it the blue `.btn` class (inheriting `#333` in light mode, `#667eea` in dark mode)
+- `resetFilters()` now clears inputs and calls `applyFilters()` directly — no page reload
+
+**Where:** `templates/home.html`, `static/script.js`, `static/style.css`
+
+---
+
+### Change I: Slider Thumb and Reset Button Match "View Details" Color (Light Mode)
+
+**Problem:** In light mode, slider thumbs were blue (`#667eea`) — the same color as dark-mode accent elements. The "View Details" button used dark (`#333`). The two color languages conflicted.
+
+**Fix:** Slider thumbs and the Reset Filters button now use the same dark color (`#333` base, `#555` on hover) in light mode, matching "View Details". In dark mode they revert to blue. All transitions use `background 0.8s ease` to match the body theme-switch speed.
+
+**Where:** `static/style.css`
+
+---
+
 ## How Each Spec Module Maps to Changes
 
 | Spec Module | Changes That Address It |

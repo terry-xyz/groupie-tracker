@@ -170,21 +170,35 @@ One function handles ALL errors. Every handler delegates to it. Change the error
 
 ```go
 // ONE function handles ALL error rendering
-func ErrorHandler(w http.ResponseWriter, status int, customMsg ...string) {
-    w.WriteHeader(status)
+// The template is cached with sync.Once so it's parsed only once, not per request.
+var (
+    errorTmpl     *template.Template
+    errorTmplOnce sync.Once
+)
 
-    // Use custom message or default HTTP status text
-    message := http.StatusText(status)
-    if len(customMsg) > 0 {
-        message = customMsg[0]
+func getErrorTmpl() *template.Template {
+    errorTmplOnce.Do(func() {
+        var err error
+        errorTmpl, err = template.ParseFiles("templates/error.html")
+        if err != nil {
+            log.Printf("Error parsing error template: %v", err)
+            // errorTmpl stays nil — ErrorHandler checks for nil before calling Execute
+        }
+    })
+    return errorTmpl
+}
+
+func ErrorHandler(w http.ResponseWriter, status int, customMsg ...string) {
+    tmpl := getErrorTmpl()
+    w.WriteHeader(status)
+    if tmpl == nil {
+        http.Error(w, "Error loading page", status) // Fallback if template itself failed
+        return
     }
 
-    // Render the error template
-    tmpl, err := template.ParseFiles("templates/error.html")
-    if err != nil {
-        // Last resort: plain text error
-        http.Error(w, message, status)
-        return
+    message := http.StatusText(status)
+    if len(customMsg) > 0 && customMsg[0] != "" {
+        message = customMsg[0]
     }
 
     tmpl.Execute(w, map[string]interface{}{

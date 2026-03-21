@@ -8,8 +8,8 @@ A Go web app that displays music artist profiles, concert history, and tour maps
 ## Features
 
 - **Artist profiles** — members, formation year, first album, band type, concert stats
-- **Search & autocomplete** — by name, member, location, or date with categorized suggestions
-- **Filters** — creation year range, first album year range, member count, location
+- **Search & autocomplete** — live search-as-you-type with categorized suggestions by name, member, location, or date
+- **Filters** — creation year range, first album year range, member count, location; state persists across navigation
 - **Sorting** — by name, newest, oldest, or default
 - **Tour map** — interactive world map with geocoded concert markers and route polylines (Leaflet + OpenStreetMap)
 - **Responsive UI** — glassmorphism design with dark/light theme toggle
