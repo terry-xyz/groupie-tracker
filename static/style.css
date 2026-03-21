@@ -301,7 +301,7 @@ body.dark-theme .artist-card p {
     border-radius: 4px;
     border: none;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: background 0.8s ease, color 0.5s ease, transform 0.3s ease;
 }
 
 .btn:hover {
@@ -315,7 +315,6 @@ body.dark-theme .artist-card p {
 
 #resetFilters {
     margin-top: 0;
-    background-color: #5568d3;
 }
 body.dark-theme #resetFilters {
     background-color: #667eea;
@@ -802,31 +801,47 @@ body.dark-theme .suggestion-category {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #667eea;
+    background: #333;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: ease-in-out 0.3s;
+    transition: background 0.8s ease, transform 0.3s ease-in-out;
 }
 
 .slider-container input[type="range"]::-moz-range-thumb {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #667eea;
+    background: #333;
     cursor: pointer;
     border: none;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: ease-in-out 0.3s;
+    transition: background 0.8s ease, transform 0.3s ease-in-out;
 }
 
 .slider-container input[type="range"]:hover::-webkit-slider-thumb {
-    background: #5568d3;
+    background: #555;
     transform: scale(1.1);
 }
 
 .slider-container input[type="range"]:hover::-moz-range-thumb {
-    background: #5568d3;
+    background: #555;
     transform: scale(1.1);
+}
+
+body.dark-theme .slider-container input[type="range"]::-webkit-slider-thumb {
+    background: #667eea;
+}
+
+body.dark-theme .slider-container input[type="range"]::-moz-range-thumb {
+    background: #667eea;
+}
+
+body.dark-theme .slider-container input[type="range"]:hover::-webkit-slider-thumb {
+    background: #5568d3;
+}
+
+body.dark-theme .slider-container input[type="range"]:hover::-moz-range-thumb {
+    background: #5568d3;
 }
 
 #memberRangeLabel {
