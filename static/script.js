@@ -144,7 +144,7 @@ document.addEventListener('click', function(e) {
 });
 
 // --- Location checkbox loading ---
-async function loadLocations() {
+async function loadLocations(savedLocations) {
     if (!locationCheckboxes) return;
     try {
         const response = await fetch('/api/locations');
@@ -163,6 +163,15 @@ async function loadLocations() {
             html += '</div>';
         });
         locationCheckboxes.innerHTML = html;
+
+        // Restore saved location checkboxes, then re-apply so they take effect
+        if (savedLocations && savedLocations.length > 0) {
+            savedLocations.forEach(function(loc) {
+                var cb = locationCheckboxes.querySelector('input[value="' + loc + '"]');
+                if (cb) cb.checked = true;
+            });
+            applyFilters();
+        }
 
         // Auto-trigger filters on checkbox change
         locationCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
@@ -304,6 +313,15 @@ async function applyFilters() {
         locations.push(cb.value);
     });
 
+    // Persist filter state so it survives artist page navigation
+    sessionStorage.setItem('gt_filters', JSON.stringify({
+        q: query, minYear: minYear, maxYear: maxYear,
+        minAlbumYear: minAlbumYear, maxAlbumYear: maxAlbumYear,
+        sort: sort, minMembers: minMembersSlider ? minMembersSlider.value : '1',
+        maxMembers: maxMembersSlider ? maxMembersSlider.value : '8',
+        locations: locations
+    }));
+
     // Only append non-empty params to avoid sending blank query values
     var params = new URLSearchParams();
     if (query) params.append('q', query);
@@ -397,10 +415,25 @@ function resetFilters() {
         resultCount.textContent = '';
     }
 
+    sessionStorage.removeItem('gt_filters');
     location.reload(); // Reload restores the server-rendered artist grid
 }
 
-// Load locations on page load (only on home page)
+// Restore saved filter state when returning from an artist page
 if (locationCheckboxes) {
-    loadLocations();
+    var _saved = null;
+    try { _saved = JSON.parse(sessionStorage.getItem('gt_filters')); } catch(e) {}
+    if (_saved) {
+        if (searchInput) searchInput.value = _saved.q || '';
+        if (minYearInput) minYearInput.value = _saved.minYear || '';
+        if (maxYearInput) maxYearInput.value = _saved.maxYear || '';
+        if (minAlbumYearInput) minAlbumYearInput.value = _saved.minAlbumYear || '';
+        if (maxAlbumYearInput) maxAlbumYearInput.value = _saved.maxAlbumYear || '';
+        if (sortBySelect) sortBySelect.value = _saved.sort || '';
+        if (minMembersSlider) minMembersSlider.value = _saved.minMembers || '1';
+        if (maxMembersSlider) maxMembersSlider.value = _saved.maxMembers || '8';
+        updateMemberLabel();
+        applyFilters();
+    }
+    loadLocations(_saved ? _saved.locations : null);
 }
