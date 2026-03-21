@@ -67,7 +67,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filter first, then sort—avoids sorting entries that will be discarded
-	var results []models.Artist
+	results := make([]models.Artist, 0)
 	for _, artist := range artists {
 		rel := relationMap[artist.ID] // may be nil if relations failed
 
