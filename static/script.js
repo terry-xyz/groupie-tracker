@@ -120,8 +120,10 @@ function escapeAttr(str) {
 
 if (searchInput) {
     searchInput.addEventListener('input', debounce(function() {
-        fetchSuggestions(searchInput.value.trim());
-    }, 250));
+        var val = searchInput.value.trim();
+        fetchSuggestions(val);
+        applyFilters();
+    }, 300));
 
     searchInput.addEventListener('keyup', function(e) {
         if (e.key === 'Enter') {
@@ -251,9 +253,23 @@ if (sortBySelect) {
 // Debounced input listeners for number fields
 var debouncedApply = debounce(applyFilters, 400);
 [minYearInput, maxYearInput, minAlbumYearInput, maxAlbumYearInput].forEach(function(input) {
-    if (input) {
-        input.addEventListener('input', debouncedApply);
-    }
+    if (!input) return;
+    input.addEventListener('input', debouncedApply);
+
+    // Block non-digit keys (prevents -, +, ., e from being typed)
+    input.addEventListener('keydown', function(e) {
+        var nav = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+        if (nav.indexOf(e.key) !== -1) return;
+        if ((e.ctrlKey || e.metaKey) && 'acvx'.indexOf(e.key.toLowerCase()) !== -1) return;
+        if (!/^\d$/.test(e.key)) e.preventDefault();
+    });
+
+    // Strip non-digits on paste or autofill
+    input.addEventListener('input', function() {
+        var cleaned = this.value.replace(/[^\d]/g, '');
+        if (this.value !== cleaned) this.value = cleaned;
+    });
 });
 
 function showLoading() {
