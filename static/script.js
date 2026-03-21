@@ -381,26 +381,6 @@ function displayArtists(artists) {
     }).join('');
 }
 
-// Smoothly animates a range slider from its current value to target over duration ms.
-function animateSlider(slider, target, duration) {
-    if (!slider) return;
-    var from = parseInt(slider.value);
-    var to = parseInt(target);
-    if (from === to) return;
-    var startTime = null;
-    function step(ts) {
-        if (!startTime) startTime = ts;
-        var t = Math.min((ts - startTime) / duration, 1);
-        // Cubic ease-in-out
-        var eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-        slider.value = Math.round(from + (to - from) * eased);
-        updateMemberLabel();
-        if (t < 1) requestAnimationFrame(step);
-        else slider.value = to;
-    }
-    requestAnimationFrame(step);
-}
-
 function resetFilters() {
     if (searchInput) searchInput.value = '';
     if (minYearInput) minYearInput.value = '';
@@ -410,9 +390,10 @@ function resetFilters() {
     if (sortBySelect) sortBySelect.value = '';
     if (locationSearch) locationSearch.value = '';
 
-    // Animate sliders back to defaults
-    animateSlider(minMembersSlider, 1, 350);
-    animateSlider(maxMembersSlider, 8, 350);
+    // Reset member sliders
+    if (minMembersSlider) minMembersSlider.value = '1';
+    if (maxMembersSlider) maxMembersSlider.value = '8';
+    updateMemberLabel();
 
     // Uncheck all location checkboxes
     document.querySelectorAll('input[name="locations"]:checked').forEach(function(cb) {
@@ -430,9 +411,7 @@ function resetFilters() {
     }
 
     sessionStorage.removeItem('gt_filters');
-
-    // Wait for slider animation to finish, then fetch and render the full unfiltered list
-    setTimeout(applyFilters, 350);
+    applyFilters();
 }
 
 // Restore saved filter state when returning from an artist page
