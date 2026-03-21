@@ -313,11 +313,11 @@ body.dark-theme .artist-card p {
     transform: scale(0.98);
 }
 
-#applyFilters {
+#resetFilters {
     margin-top: 0;
     background-color: #5568d3;
 }
-body.dark-theme #applyFilters {
+body.dark-theme #resetFilters {
     background-color: #667eea;
 }
 
