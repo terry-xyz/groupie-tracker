@@ -144,17 +144,34 @@
     function initMap(locations) {
 
         var worldBounds = L.latLngBounds(L.latLng(-90, -180), L.latLng(90, 180));
-        // Minimum zoom where world tiles (256px each) cover the container width — prevents grey side bars
         var _mapContainerEl = document.getElementById('concert-map');
-        var _containerWidth = (_mapContainerEl && _mapContainerEl.offsetWidth) || 960;
-        var autoMinZoom = Math.max(1, Math.ceil(Math.log2(_mapContainerEl.offsetWidth / 256)));
+
+        // At zoom z, one OSM tile is 256px and the world spans 256*2^z px on each axis.
+        // To prevent grey bars we need 256*2^z >= container dimension for both axes,
+        // so take the larger of width/height as the binding constraint.
+        // No Math.ceil — zoomSnap:0 supports fractional zoom levels so we can use the exact value.
+        function computeMinZoom() {
+            var w = _mapContainerEl.offsetWidth  || 256;
+            var h = _mapContainerEl.offsetHeight || 256;
+            return Math.log2(Math.max(w, h) / 256);
+        }
+
         var map = L.map('concert-map', {
             worldCopyJump: false,
             maxBounds: worldBounds,
             maxBoundsViscosity: 1.0,
             scrollWheelZoom: false,
             zoomSnap: 0,
-            minZoom: autoMinZoom
+            minZoom: computeMinZoom()
+        });
+
+        // Recompute minZoom whenever the container resizes (window resize, orientation change, etc.)
+        map.on('resize', function() {
+            var newMin = computeMinZoom();
+            map.setMinZoom(newMin);
+            if (map.getZoom() < newMin) {
+                map.setZoom(newMin);
+            }
         });
 
         // Scroll zoom without grey flash:
