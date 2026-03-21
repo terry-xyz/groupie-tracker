@@ -4,7 +4,6 @@ const maxYearInput = document.getElementById('maxYear');
 const minAlbumYearInput = document.getElementById('minAlbumYear');
 const maxAlbumYearInput = document.getElementById('maxAlbumYear');
 const sortBySelect = document.getElementById('sortBy');
-const applyBtn = document.getElementById('applyFilters');
 const resetBtn = document.getElementById('resetFilters');
 const artistGrid = document.getElementById('artistGrid');
 const themeToggle = document.getElementById('themeToggle');
@@ -201,10 +200,6 @@ if (locationSearch) {
 }
 
 // --- Filter buttons ---
-if (applyBtn) {
-    applyBtn.addEventListener('click', applyFilters);
-}
-
 if (resetBtn) {
     resetBtn.addEventListener('click', resetFilters);
 }
@@ -214,13 +209,6 @@ function updateMemberLabel() {
     if (!memberRangeLabel || !minMembersSlider || !maxMembersSlider) return;
     var min = parseInt(minMembersSlider.value);
     var max = parseInt(maxMembersSlider.value);
-    
-    // Ensure min doesn't exceed max
-    if (min > max) {
-        minMembersSlider.value = max;
-        min = max;
-    }
-    
     var minLabel = min.toString();
     var maxLabel = max === 8 ? '8+' : max.toString();
     memberRangeLabel.textContent = minLabel + ' - ' + maxLabel;
@@ -233,6 +221,10 @@ if (minMembersSlider && maxMembersSlider) {
 
 if (minMembersSlider) {
     minMembersSlider.addEventListener('input', function() {
+        // If min overtakes max, push max up to match
+        if (parseInt(minMembersSlider.value) > parseInt(maxMembersSlider.value)) {
+            maxMembersSlider.value = minMembersSlider.value;
+        }
         updateMemberLabel();
         debouncedApply();
     });
@@ -240,6 +232,10 @@ if (minMembersSlider) {
 
 if (maxMembersSlider) {
     maxMembersSlider.addEventListener('input', function() {
+        // If max drops below min, push min down to match
+        if (parseInt(maxMembersSlider.value) < parseInt(minMembersSlider.value)) {
+            minMembersSlider.value = maxMembersSlider.value;
+        }
         updateMemberLabel();
         debouncedApply();
     });
