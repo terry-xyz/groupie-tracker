@@ -97,7 +97,12 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 		if locs, ok := relationMap[artist.ID]; ok {
 			for location := range locs {
 				if strings.Contains(strings.ToLower(location), query) {
-					addSuggestion(location, "location")
+					city, country := services.FormatLocationName(location)
+					formatted := city
+					if country != "" {
+						formatted = city + ", " + country
+					}
+					addSuggestion(formatted, "location")
 				}
 			}
 		}

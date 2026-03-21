@@ -125,10 +125,19 @@ func matchesSearch(artist models.Artist, relation *models.Relation, query string
 		return true
 	}
 
-	// Search by concert locations (e.g., "london" finds artists with London concerts)
+	// Search by concert locations — match both raw key and formatted name
+	// so "playa del carmen, mexico" and "playa_del_carmen-mexico" both work
 	if relation != nil {
 		for location := range relation.DatesLocations {
 			if strings.Contains(strings.ToLower(location), query) {
+				return true
+			}
+			city, country := services.FormatLocationName(location)
+			formatted := strings.ToLower(city)
+			if country != "" {
+				formatted += ", " + strings.ToLower(country)
+			}
+			if strings.Contains(formatted, query) {
 				return true
 			}
 		}
