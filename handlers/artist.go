@@ -26,10 +26,22 @@ var (
 	artistTmplOnce sync.Once
 )
 
+// getArtistTmpl parses and caches the artist template once, registering custom template functions via FuncMap.
 func getArtistTmpl() *template.Template {
 	artistTmplOnce.Do(func() {
 		var err error
-		artistTmpl, err = template.ParseFiles("templates/artist.html")
+		// FuncMap exposes helpers to artist.html; formatLocation converts raw API keys like
+		// "north_carolina-usa" into human-readable labels like "North Carolina, Usa".
+		funcMap := template.FuncMap{
+			"formatLocation": func(raw string) string {
+				city, country := services.FormatLocationName(raw)
+				if country == "" {
+					return city // Raw key has no dash (single-word location), so the whole string is the label
+				}
+				return city + ", " + country
+			},
+		}
+		artistTmpl, err = template.New("artist.html").Funcs(funcMap).ParseFiles("templates/artist.html")
 		if err != nil {
 			log.Fatalf("Error parsing artist template: %v", err)
 		}

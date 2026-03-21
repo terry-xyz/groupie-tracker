@@ -95,10 +95,10 @@
                     <div class="concert-card">
                         <div class="concert-location">
                             <span class="location-icon">📍</span>
-                            <span class="location-name">{{$location}}</span>
+                            <span class="location-name">{{formatLocation $location}}</span>
                         </div>
                         <div class="concert-dates">
-                            <span class="dates-count">{{len $dates}} concert(s)</span>
+                            <span class="dates-count">{{len $dates}} concert{{if ne (len $dates) 1}}s{{end}}</span>
                             <ul class="dates-list">
                                 {{range $dates}}
                                 <li>📅 {{.}}</li>
