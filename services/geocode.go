@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -122,9 +123,14 @@ func geocodeAddress(query string) (lat, lng float64, err error) {
 		return 0, 0, fmt.Errorf("no geocode results for %q", query)
 	}
 
-	var latF, lngF float64
-	fmt.Sscanf(results[0].Lat, "%f", &latF)
-	fmt.Sscanf(results[0].Lon, "%f", &lngF)
+	latF, err := strconv.ParseFloat(results[0].Lat, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid lat %q from Nominatim: %v", results[0].Lat, err)
+	}
+	lngF, err := strconv.ParseFloat(results[0].Lon, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid lng %q from Nominatim: %v", results[0].Lon, err)
+	}
 
 	// Cache the result and persist to disk
 	geocodeCacheMu.Lock()

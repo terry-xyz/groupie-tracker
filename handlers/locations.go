@@ -62,5 +62,7 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(LocationsResponse{Countries: countries})
+	if err := json.NewEncoder(w).Encode(LocationsResponse{Countries: countries}); err != nil {
+		log.Printf("Error encoding locations response: %v", err)
+	}
 }

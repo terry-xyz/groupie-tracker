@@ -20,7 +20,9 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q"))) // TrimSpace prevents whitespace-only input from returning suggestions
 	if query == "" {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]Suggestion{})
+		if err := json.NewEncoder(w).Encode([]Suggestion{}); err != nil {
+			log.Printf("Error encoding empty suggestions: %v", err)
+		}
 		return
 	}
 
@@ -28,7 +30,9 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error fetching artists for suggestions: %v", err)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode([]Suggestion{})
+		if err := json.NewEncoder(w).Encode([]Suggestion{}); err != nil {
+			log.Printf("Error encoding empty suggestions on fetch error: %v", err)
+		}
 		return
 	}
 
@@ -100,5 +104,7 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suggestions)
+	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
+		log.Printf("Error encoding suggestions: %v", err)
+	}
 }

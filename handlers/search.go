@@ -92,7 +92,9 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	sortArtists(results, sortBy)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	if err := json.NewEncoder(w).Encode(results); err != nil {
+		log.Printf("Error encoding search results: %v", err)
+	}
 }
 
 // matchesSearch returns true if the query matches the artist's name, members, creation date,
@@ -139,15 +141,13 @@ func matchesSearch(artist models.Artist, relation *models.Relation, query string
 // Empty strings mean no bound.
 func matchesYearFilter(artist models.Artist, minYear, maxYear string) bool {
 	if minYear != "" {
-		min, _ := strconv.Atoi(minYear)
-		if artist.CreationDate < min {
+		if min, err := strconv.Atoi(minYear); err == nil && artist.CreationDate < min {
 			return false
 		}
 	}
 
 	if maxYear != "" {
-		max, _ := strconv.Atoi(maxYear)
-		if artist.CreationDate > max {
+		if max, err := strconv.Atoi(maxYear); err == nil && artist.CreationDate > max {
 			return false
 		}
 	}
@@ -180,15 +180,13 @@ func matchesAlbumYearFilter(artist models.Artist, minAlbumYear, maxAlbumYear str
 	}
 
 	if minAlbumYear != "" {
-		min, _ := strconv.Atoi(minAlbumYear)
-		if year < min {
+		if min, err := strconv.Atoi(minAlbumYear); err == nil && year < min {
 			return false
 		}
 	}
 
 	if maxAlbumYear != "" {
-		max, _ := strconv.Atoi(maxAlbumYear)
-		if year > max {
+		if max, err := strconv.Atoi(maxAlbumYear); err == nil && year > max {
 			return false
 		}
 	}
