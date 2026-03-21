@@ -13,6 +13,7 @@ var (
 	homeTmplOnce sync.Once
 )
 
+// getHomeTmpl parses and caches the home template once so repeated requests don't re-parse the file.
 func getHomeTmpl() *template.Template {
 	homeTmplOnce.Do(func() {
 		var err error

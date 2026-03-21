@@ -17,7 +17,7 @@ type Suggestion struct {
 
 // SuggestionsHandler handles GET /api/suggestions?q=... for autocomplete.
 func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
-	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q"))) // TrimSpace prevents whitespace-only input from returning suggestions
 	if query == "" {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode([]Suggestion{})
@@ -47,11 +47,13 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 	seen := make(map[string]bool)
 	var suggestions []Suggestion
 
+	// addSuggestion appends a suggestion only if the 10-item cap hasn't been reached and the
+	// text|category pair hasn't been seen before, so the same value from two artists isn't listed twice.
 	addSuggestion := func(text, category string) {
 		if len(suggestions) >= 10 {
 			return
 		}
-		key := text + "|" + category
+		key := text + "|" + category // composite key so identical text from different categories stays distinct
 		if seen[key] {
 			return
 		}

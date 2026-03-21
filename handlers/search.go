@@ -49,7 +49,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error fetching artists for search: %v", err)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch artists"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch artists"}) // JS client parses JSON even on error, so we respond with JSON not plain text
 		return
 	}
 

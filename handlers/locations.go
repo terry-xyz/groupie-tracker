@@ -36,9 +36,9 @@ func LocationsHandler(w http.ResponseWriter, r *http.Request) {
 	for _, rel := range relations {
 		for location := range rel.DatesLocations {
 			parts := strings.Split(location, "-")
-			country := location // fallback: use the whole string
+			country := location // fallback: key has no dash, so treat the entire string as the country label
 			if len(parts) > 1 {
-				country = parts[len(parts)-1]
+				country = parts[len(parts)-1] // last segment after "-" is the country (e.g., "north_carolina-usa" → "usa")
 			}
 			if countryMap[country] == nil {
 				countryMap[country] = make(map[string]bool)

@@ -11,7 +11,7 @@ import (
 // ArtistGeoHandler returns geocoded locations for a single artist as JSON.
 // Called asynchronously by the frontend so the artist page loads instantly.
 func ArtistGeoHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get("id")
+	idStr := r.URL.Query().Get("id") // Artist ID comes from the ?id= query parameter set by the frontend
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		http.Error(w, `{"error":"invalid id"}`, http.StatusBadRequest)
@@ -35,6 +35,7 @@ func ArtistGeoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if datesLocations == nil {
+		// Artist not found in relations — return an empty array so the frontend map hides gracefully
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode([]services.GeoLocation{})
 		return

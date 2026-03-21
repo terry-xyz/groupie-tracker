@@ -66,7 +66,7 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Linear search because the API returns all artists without a single-artist endpoint
-	var foundArtist *models.Artist
+	var foundArtist *models.Artist // starts nil; stays nil if no artist has this ID, triggering 404 below
 	for _, a := range artists {
 		if a.ID == id {
 			foundArtist = &a
@@ -80,7 +80,7 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use cached relations and find the one for this artist
-	var relation *models.Relation
+	var relation *models.Relation // nil relation is safe — template skips map and concert sections via {{if .Relation}}
 	relations, err := services.GetAllRelations()
 	if err != nil {
 		log.Printf("Error fetching relations for artist %d: %v", id, err)
