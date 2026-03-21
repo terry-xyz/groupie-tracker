@@ -90,7 +90,9 @@ func ArtistHandler(w http.ResponseWriter, r *http.Request) {
 		BandType:       getBandType(len(foundArtist.Members)),        // Classify group size (solo, duo, trio, etc.)
 	}
 
-	getArtistTmpl().Execute(w, pageData)
+	if err := getArtistTmpl().Execute(w, pageData); err != nil {
+		log.Printf("Error rendering artist template for id %d: %v", id, err)
+	}
 }
 
 // calculateTotalConcerts returns the total number of concert dates across all locations for an artist.

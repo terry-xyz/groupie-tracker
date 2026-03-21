@@ -38,5 +38,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	getHomeTmpl().Execute(w, artists) // Pass the full artist slice as template data so home.html can render the grid
+	if err := getHomeTmpl().Execute(w, artists); err != nil { // artists slice is the template data; home.html iterates it to render the initial artist grid
+		log.Printf("Error rendering home template: %v", err)
+	}
 }

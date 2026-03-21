@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"html/template"
+	"log"
 	"net/http"
 )
 
@@ -23,5 +24,7 @@ func ErrorHandler(w http.ResponseWriter, status int, customMsg ...string) {
 		"Status":  status,
 		"Message": message,
 	}
-	tmpl.Execute(w, data)
+	if err := tmpl.Execute(w, data); err != nil {
+		log.Printf("Error rendering error template (status %d): %v", status, err)
+	}
 }
