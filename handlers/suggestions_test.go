@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"groupie-tracker/models"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -59,7 +60,7 @@ func TestSuggestionsHandlerResults(t *testing.T) {
 	}
 }
 
-// TestSuggestionsHandlerCap verifies max 10 suggestions returned
+// TestSuggestionsHandlerCap verifies max 15 suggestions returned
 func TestSuggestionsHandlerCap(t *testing.T) {
 	// "a" should match many artists/members
 	req := httptest.NewRequest("GET", "/api/suggestions?q=a", nil)
@@ -72,7 +73,39 @@ func TestSuggestionsHandlerCap(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	if len(suggestions) > 10 {
-		t.Errorf("Expected max 10 suggestions, got %d", len(suggestions))
+	if len(suggestions) > 15 {
+		t.Errorf("Expected max 15 suggestions, got %d", len(suggestions))
+	}
+}
+
+func TestBuildSuggestionsBalancesCategories(t *testing.T) {
+	artists := []models.Artist{
+		{ID: 1, Name: "Genesis", Members: []string{"Gabriel"}, CreationDate: 1967, FirstAlbum: "01-01-1969"},
+		{ID: 2, Name: "Ghost", Members: []string{"Ghoulette"}, CreationDate: 2006, FirstAlbum: "01-01-2010"},
+	}
+	relationMap := map[int]map[string][]string{
+		1: {"glasgow-scotland": {"2026-01-01"}},
+		2: {"geneva-switzerland": {"2026-01-02"}},
+	}
+
+	suggestions := buildSuggestions(artists, relationMap, "g", 10)
+
+	hasCategory := func(category string) bool {
+		for _, suggestion := range suggestions {
+			if suggestion.Category == category {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !hasCategory("artist/band") {
+		t.Fatal("Expected artist/band suggestions for broad query")
+	}
+	if !hasCategory("location") {
+		t.Fatal("Expected location suggestions for broad query")
+	}
+	if !hasCategory("member") {
+		t.Fatal("Expected member suggestions for broad query")
 	}
 }

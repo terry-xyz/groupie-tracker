@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"groupie-tracker/models"
 	"groupie-tracker/services"
 	"log"
 	"net/http"
@@ -17,7 +18,7 @@ type Suggestion struct {
 
 // SuggestionsHandler handles GET /api/suggestions?q=... for autocomplete.
 func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
-	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q"))) // TrimSpace prevents whitespace-only input from returning suggestions
+	query := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	if query == "" {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode([]Suggestion{}); err != nil {
@@ -41,76 +42,93 @@ func SuggestionsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error fetching relations for suggestions: %v", relErr)
 	}
 
-	// Build relation map for location lookups
 	relationMap := make(map[int]map[string][]string)
 	for _, rel := range relations {
 		relationMap[rel.ID] = rel.DatesLocations
 	}
 
-	// Deduplicate suggestions by "text|category" key
-	seen := make(map[string]bool)
-	var suggestions []Suggestion
-
-	// addSuggestion appends a suggestion only if the 10-item cap hasn't been reached and the
-	// text|category pair hasn't been seen before, so the same value from two artists isn't listed twice.
-	addSuggestion := func(text, category string) {
-		if len(suggestions) >= 10 {
-			return
-		}
-		key := text + "|" + category // composite key so identical text from different categories stays distinct
-		if seen[key] {
-			return
-		}
-		seen[key] = true
-		suggestions = append(suggestions, Suggestion{Text: text, Category: category})
-	}
-
-	for _, artist := range artists {
-		if len(suggestions) >= 10 {
-			break
-		}
-
-		// Artist/band names
-		if strings.Contains(strings.ToLower(artist.Name), query) {
-			addSuggestion(artist.Name, "artist/band")
-		}
-
-		// Member names
-		for _, member := range artist.Members {
-			if strings.Contains(strings.ToLower(member), query) {
-				addSuggestion(member, "member")
-			}
-		}
-
-		// Creation date
-		yearStr := strconv.Itoa(artist.CreationDate)
-		if strings.Contains(yearStr, query) {
-			addSuggestion(yearStr, "creation date")
-		}
-
-		// First album date
-		if strings.Contains(strings.ToLower(artist.FirstAlbum), query) {
-			addSuggestion(artist.FirstAlbum, "first album date")
-		}
-
-		// Locations from relations — match on the raw key but suggest the pretty display name
-		// so the user sees "Playa Del Carmen, Mexico" instead of "playa_del_carmen-mexico"
-		if locs, ok := relationMap[artist.ID]; ok {
-			for location := range locs {
-				if strings.Contains(strings.ToLower(location), query) {
-					city, country := services.FormatLocationName(location)
-					formatted := city // formatted is "City, Country" used as the suggestion text
-					if country != "" {
-						formatted = city + ", " + country
-					}
-					addSuggestion(formatted, "location")
-				}
-			}
-		}
-	}
+	suggestions := buildSuggestions(artists, relationMap, query, 15)
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
 		log.Printf("Error encoding suggestions: %v", err)
 	}
+}
+
+// buildSuggestions collects matches by category first, then interleaves categories so broad
+// queries still include artist/band names and locations within the capped dropdown.
+func buildSuggestions(artists []models.Artist, relationMap map[int]map[string][]string, query string, limit int) []Suggestion {
+	categoryMatches := map[string][]Suggestion{
+		"artist/band":      {},
+		"location":         {},
+		"member":           {},
+		"creation date":    {},
+		"first album date": {},
+	}
+	categoryOrder := []string{"artist/band", "location", "member", "creation date", "first album date"}
+	seen := make(map[string]bool)
+
+	addToCategory := func(text, category string) {
+		key := text + "|" + category
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		categoryMatches[category] = append(categoryMatches[category], Suggestion{Text: text, Category: category})
+	}
+
+	for _, artist := range artists {
+		if strings.Contains(strings.ToLower(artist.Name), query) {
+			addToCategory(artist.Name, "artist/band")
+		}
+
+		for _, member := range artist.Members {
+			if strings.Contains(strings.ToLower(member), query) {
+				addToCategory(member, "member")
+			}
+		}
+
+		yearStr := strconv.Itoa(artist.CreationDate)
+		if strings.Contains(yearStr, query) {
+			addToCategory(yearStr, "creation date")
+		}
+
+		if strings.Contains(strings.ToLower(artist.FirstAlbum), query) {
+			addToCategory(artist.FirstAlbum, "first album date")
+		}
+
+		if locs, ok := relationMap[artist.ID]; ok {
+			for location := range locs {
+				if strings.Contains(strings.ToLower(location), query) {
+					city, country := services.FormatLocationName(location)
+					formatted := city
+					if country != "" {
+						formatted = city + ", " + country
+					}
+					addToCategory(formatted, "location")
+				}
+			}
+		}
+	}
+
+	suggestions := make([]Suggestion, 0, limit)
+	for len(suggestions) < limit {
+		added := false
+		for _, category := range categoryOrder {
+			if len(categoryMatches[category]) == 0 {
+				continue
+			}
+			suggestions = append(suggestions, categoryMatches[category][0])
+			categoryMatches[category] = categoryMatches[category][1:]
+			added = true
+			if len(suggestions) >= limit {
+				break
+			}
+		}
+		if !added {
+			break
+		}
+	}
+
+	return suggestions
 }
